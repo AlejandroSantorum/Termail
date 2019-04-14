@@ -1,2 +1,3 @@
-# CommunicationNetworks2_Assignments
-Set of assignments for Communication Networks II subject
+# Termail
+Communication Networks project for second semester.
+Project called Termail (mail using terminal or terminal mail)
