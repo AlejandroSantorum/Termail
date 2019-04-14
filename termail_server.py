@@ -38,8 +38,14 @@ class UserDatabase:
             if self.__users[i].get_name() == name:
                 if self.__users[i].get_password() == password:
                     self.__users.pop(i)
-                    return SUCCESS
         raise Exception("This user does not exist")
+
+    def authenticate_user(self, name, password):
+        for user in self.__users:
+            if user.get_name() == name:
+                if user.get_password() == password:
+                    return
+        raise Exception("Incorrect username or password")
 
 
 class TermailServer:
@@ -101,29 +107,52 @@ class TermailServer:
             raise Exception(str(err))
 
 
+    def sign_in_user(self, name, password):
+        try:
+            self.user_db.authenticate_user(name, password)
+        except Exception as err:
+            raise Exception(str(err))
+
+
     def client_handler(self, client_skt, client_addr):
         self.total_users += 1
         self.connected_users += 1
 
-        try:
-            command_bytes = client_skt.recv(self.recv_size)
-            command_str = command_bytes.decode()
-            args = command_str.split()
-            if args[CMD] == 'REGISTER':
-                try:
-                    self.register_user(args[USERNAME], args[PASSW])
-                except Exception as err:
-                    msg = "Unable to register: "+str(err)
+        while 1:
+            try:
+                command_bytes = client_skt.recv(self.recv_size)
+                command_str = command_bytes.decode()
+                if len(command_str) == 0: # Client closed
+                    break
+                args = command_str.split()
+                # Registration command
+                if args[CMD] == 'REGISTER':
+                    try:
+                        self.register_user(args[USERNAME], args[PASSW])
+                    except Exception as err:
+                        msg = "Unable to register: "+str(err)
+                        client_skt.send(msg.encode())
+                    msg = "Registration of user \'"+args[USERNAME]+"\' completed"
                     client_skt.send(msg.encode())
-                msg = "Registration of user \'"+args[USERNAME]+"\' completed"
-                client_skt.send(msg.encode())
-            else:
-                msg = "Command \'"+args[CMD]+"\' not supported"
-                client_skt.send(msg.encode())
-        except skt.error as err:
-            print("Socket error: "+str(err))
-        finally:
-            self.connected_users -= 1
+                # Sign in command
+                elif args[CMD] == 'SIGN_IN':
+                    try:
+                        self.sign_in_user(args[USERNAME], args[PASSW])
+                    except Exception as err:
+                        msg = "Unable to sign in: "+str(err)
+                        client_skt.send(msg.encode())
+                    msg = "Sign in as \'"+args[USERNAME]+"\' successfully"
+                    client_skt.send(msg.encode())
+                else:
+                    msg = "Command \'"+args[CMD]+"\' not supported"
+                    client_skt.send(msg.encode())
+            except skt.error as err:
+                print("Socket error: "+str(err))
+                client_skt.close()
+                self.connected_users -= 1
+        client_skt.close()
+        self.connected_users -= 1
+        print("Total users = ",self.total_users)
 
 
 

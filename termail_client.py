@@ -66,6 +66,13 @@ class TermailClient:
             self._open_socket()
         except skt.error as err:
             raise err
+        # Preparing command
+        msg = "SIGN_IN "+name+" "+password
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        print(server_answer.decode())
 
 
 if __name__ == "__main__":
@@ -74,18 +81,15 @@ if __name__ == "__main__":
 
     termail = TermailClient(server_ip, server_port)
     mode = termail.login()
-    if mode == REGISTER:
-        try:
+    try:
+        if mode == REGISTER:
             termail.register()
-        except skt.error as err:
-            print("Socket error: "+str(err))
-    elif mode == SIGN_IN:
-        try:
+        elif mode == SIGN_IN:
             termail.sign_in()
-        except skt.error as err:
-            print("Socket error: "+str(err))
-    elif mode == EXIT:
-        print("Exit successfully")
-        exit()
-    else:
-        print("Error: Login mode failed")
+        elif mode == EXIT:
+            print("Exit successfully")
+            exit()
+        else:
+            print("Error: Login mode failed")
+    except skt.error as err:
+        print("Socket error: "+str(err))
