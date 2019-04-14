@@ -8,16 +8,40 @@ CMD = 0
 USERNAME = 1
 PASSW = 2
 
+class Message:
+
+    def __init__(self, from_name, to_name, msg):
+        self.__from = from_name
+        self.__to = to_name
+        self.__msg = msg
+
+    def get_from(self):
+        return self.__from
+
+    def get_to(self):
+        return self.__to
+
+    def get_msg(self):
+        return self.__msg
+
+
 class User:
+
     def __init__(self, name, password):
         self.__name = name
         self.__password = password
+        self.__messages = []
+        self.__nmessages = 0
 
     def get_name(self):
         return self.__name
 
     def get_password(self):
         return self.__password
+
+    def add_message(self, from_name, msg):
+        self.__messages.append(Message(from_name, self.__name, msg))
+        self.__nmessages += 1
 
 
 class UserDatabase:
@@ -32,12 +56,14 @@ class UserDatabase:
             if user.get_name() == name:
                 raise Exception("There is already an user registered with this name")
         self.__users.append(User(name, password))
+        self.__nusers += 1
 
     def delete_user(self, name, password):
         for i in range(self.__nusers):
             if self.__users[i].get_name() == name:
                 if self.__users[i].get_password() == password:
                     self.__users.pop(i)
+                    self.__nusers -= 1
         raise Exception("This user does not exist")
 
     def authenticate_user(self, name, password):
@@ -46,6 +72,19 @@ class UserDatabase:
                 if user.get_password() == password:
                     return
         raise Exception("Incorrect username or password")
+
+    def get_list_users(self):
+        msg = ""
+        for user in self.__users:
+            msg += user.get_name() + "\n"
+        return msg
+
+    def send_message(self, from_name, to_name, msg):
+        for user in self.__users:
+            if user.get_name() == to_name:
+                user.add_message(from_name, msg)
+                return
+        raise Exception("User not found")
 
 
 class TermailServer:
@@ -113,11 +152,15 @@ class TermailServer:
         except Exception as err:
             raise Exception(str(err))
 
+    def list_users(self):
+        return self.user_db.get_list_users()
+
 
     def client_handler(self, client_skt, client_addr):
         self.total_users += 1
         self.connected_users += 1
 
+        logged_user = None
         while 1:
             try:
                 command_bytes = client_skt.recv(self.recv_size)
@@ -133,6 +176,7 @@ class TermailServer:
                         msg = "Unable to register: "+str(err)
                         client_skt.send(msg.encode())
                     msg = "Registration of user \'"+args[USERNAME]+"\' completed"
+                    logged_user = args[USERNAME]
                     client_skt.send(msg.encode())
                 # Sign in command
                 elif args[CMD] == 'SIGN_IN':
@@ -142,6 +186,17 @@ class TermailServer:
                         msg = "Unable to sign in: "+str(err)
                         client_skt.send(msg.encode())
                     msg = "Sign in as \'"+args[USERNAME]+"\' successfully"
+                    logged_user = args[USERNAME]
+                    client_skt.send(msg.encode())
+                # Sign out command
+                elif args[CMD] == 'SIGN_OUT':
+                    print("Client \'"+logged_user+"\' has just signed out")
+                    client_skt.close()
+                    self.connected_users -= 1
+                    return
+                # List users command
+                elif args[CMD] == 'LIST_USERS':
+                    msg = self.list_users()
                     client_skt.send(msg.encode())
                 else:
                     msg = "Command \'"+args[CMD]+"\' not supported"
@@ -152,7 +207,6 @@ class TermailServer:
                 self.connected_users -= 1
         client_skt.close()
         self.connected_users -= 1
-        print("Total users = ",self.total_users)
 
 
 

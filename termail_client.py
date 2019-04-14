@@ -1,7 +1,7 @@
 import socket as skt
 
 ERROR = -1
-SUCESS = 0
+SUCCESS = 0
 REGISTER = 1
 SIGN_IN = 2
 EXIT = 3
@@ -46,43 +46,67 @@ class TermailClient:
             if password == password2:
                 break
             print("Password does not match. Try again")
-        try:
-            self._open_socket()
-        except skt.error as err:
-            raise err
+        # Opening socket and connecting Termail server
+        self._open_socket()
         # Preparing command
         msg = "REGISTER "+name+" "+password
         # Sending message to server
         self.client_skt.send(msg.encode())
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        print(server_answer.decode())
+        answer = server_answer.decode()
+        print(answer)
+        answer_aux = answer.split()
+        if answer_aux[0] == "Unable":
+            return ERROR
+        else:
+            return SUCCESS
 
 
     def sign_in(self):
         name = input("Introduce nickname: ")
         password = input("Introduce password: ")
-        try:
-            self._open_socket()
-        except skt.error as err:
-            raise err
+        # Opening socket and connecting Termail server
+        self._open_socket()
         # Preparing command
         msg = "SIGN_IN "+name+" "+password
         # Sending message to server
         self.client_skt.send(msg.encode())
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        print(server_answer.decode())
+        answer = server_answer.decode()
+        print(answer)
+        answer_aux = answer.split()
+        if answer_aux[0] == "Unable":
+            return ERROR
+        else:
+            return SUCCESS
+
 
     def print_help(self):
         print("Available commands:")
         print("· HELP\n\t-> shows all commands")
         print("· SIGN_OUT\n\t-> closes the connection with the Termail server")
-        print("· LIST_USERS\n\t-> sends to Termail server a request to get all the connected users")
+        print("· LIST_USERS\n\t-> sends to Termail server a request to get the users' list")
 
 
     def sign_out(self):
+        # Preparing command
+        msg = "SIGN_OUT"
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Closing socket
         self.client_skt.close()
+
+
+    def list_users(self):
+        # Preparing command
+        msg = "LIST_USERS"
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        print(server_answer.decode())
 
 
 if __name__ == "__main__":
@@ -91,30 +115,44 @@ if __name__ == "__main__":
 
     termail = TermailClient(server_ip, server_port)
     # Start panel: register, sign in or exit
-    mode = termail.login()
-    try:
-        if mode == REGISTER:
-            termail.register()
-        elif mode == SIGN_IN:
-            termail.sign_in()
-        elif mode == EXIT:
-            print("Exit successfully")
-            exit()
-        else:
-            print("Error: Login mode failed")
-    except skt.error as err:
-        print("Socket error: "+str(err))
+    while 1:
+        mode = termail.login()
+        try:
+            if mode == REGISTER:
+                if termail.register() == SUCCESS:
+                    break # Registered successfully
+            elif mode == SIGN_IN:
+                if termail.sign_in() == SUCCESS:
+                    break # Signed in successfully
+            elif mode == EXIT:
+                print("Exit successfully")
+                exit()
+            else:
+                print("Error: Login mode failed")
+        except skt.error as err:
+            print("Socket error: "+str(err))
+        except KeyboardInterrupt:
+            print("Exiting Termail client")
 
     # Once registered or signed in, you can send several commands
     while 1:
-        command = input("Introduce command: ")
-        cmd_items = command.split()
-        if cmd_items[0] == "HELP":
-            termail.print_help()
-        elif cmd_items[0] == "SIGN_OUT":
+        try:
+            command = input("Introduce command: ")
+            cmd_items = command.split()
+            if cmd_items[0] == "HELP":
+                termail.print_help()
+            elif cmd_items[0] == "SIGN_OUT":
+                termail.sign_out()
+                print("Exiting Termail client")
+                break
+            elif cmd_items[0] == "LIST_USERS":
+                termail.list_users()
+            #elif cmd_items[0] == "TEST_CONN":
+            #    termail.test_connection()
+            else:
+                print("Invalid command. Use HELP command if needed")
+        except skt.error as err:
+            print("Socket error: "+str(err))
+        except KeyboardInterrupt:
+            print("Exiting Termail client")
             termail.sign_out()
-            break
-        #elif cmd_items[0] == "TEST_CONN":
-        #    termail.test_connection()
-        else:
-            print("Invalid command. Use HELP command if needed")
