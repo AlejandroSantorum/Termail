@@ -74,12 +74,23 @@ class TermailClient:
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())
 
+    def print_help(self):
+        print("Available commands:")
+        print("· HELP\n\t-> shows all commands")
+        print("· SIGN_OUT\n\t-> closes the connection with the Termail server")
+        print("· LIST_USERS\n\t-> sends to Termail server a request to get all the connected users")
+
+
+    def sign_out(self):
+        self.client_skt.close()
+
 
 if __name__ == "__main__":
     server_ip = '127.0.0.1'
     server_port = 5005
 
     termail = TermailClient(server_ip, server_port)
+    # Start panel: register, sign in or exit
     mode = termail.login()
     try:
         if mode == REGISTER:
@@ -93,3 +104,17 @@ if __name__ == "__main__":
             print("Error: Login mode failed")
     except skt.error as err:
         print("Socket error: "+str(err))
+
+    # Once registered or signed in, you can send several commands
+    while 1:
+        command = input("Introduce command: ")
+        cmd_items = command.split()
+        if cmd_items[0] == "HELP":
+            termail.print_help()
+        elif cmd_items[0] == "SIGN_OUT":
+            termail.sign_out()
+            break
+        #elif cmd_items[0] == "TEST_CONN":
+        #    termail.test_connection()
+        else:
+            print("Invalid command. Use HELP command if needed")
