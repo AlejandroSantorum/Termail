@@ -8,10 +8,11 @@ EXIT = 3
 
 class TermailClient:
 
-    def __init__(self, server_ip, server_port):
+    def __init__(self, server_ip, server_port, recv_size=1024):
         self.server_ip = server_ip
         self.server_port = server_port
         self.client_skt = -1
+        self.recv_size = recv_size
 
 
     def login(self):
@@ -49,6 +50,13 @@ class TermailClient:
             self._open_socket()
         except skt.error as err:
             raise err
+        # Preparing command
+        msg = "REGISTER "+name+" "+password
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        print(server_answer.decode())
 
 
     def sign_in(self):

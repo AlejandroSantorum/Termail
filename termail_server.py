@@ -2,9 +2,50 @@ import socket as skt
 import threading as thr
 import time
 
+ERROR = -1
+SUCCESS = 0
+CMD = 0
+USERNAME = 1
+PASSW = 2
+
+class User:
+    def __init__(self, name, password):
+        self.__name = name
+        self.__password = password
+
+    def get_name(self):
+        return self.__name
+
+    def get_password(self):
+        return self.__password
+
+
+class UserDatabase:
+
+    def __init__(self, max_users=100):
+        self.__max_users = max_users
+        self.__users = []
+        self.__nusers = 0
+
+    def insert_user(self, name, password):
+        for user in self.__users:
+            if user.get_name() == name:
+                raise Exception("There is already an user registered with this name")
+        self.__users.append(User(name, password))
+
+    def delete_user(self, name, password):
+        for i in range(self.__nusers):
+            if self.__users[i].get_name() == name:
+                if self.__users[i].get_password() == password:
+                    self.__users.pop(i)
+                    return SUCCESS
+        raise Exception("This user does not exist")
+
+
 class TermailServer:
 
-    def __init__(self, server_ip, server_port, listen_size=20, max_clients=5):
+    def __init__(self, server_ip, server_port, listen_size=20, max_clients=5,
+                 recv_size=1024):
         # Server ip
         self.server_ip = server_ip
         # Server port
@@ -19,6 +60,10 @@ class TermailServer:
         self.connected_users = 0
         # Server total users counter
         self.total_users = 0
+        # Maximum length of messages
+        self.recv_size = recv_size
+        # User database
+        self.user_db = UserDatabase()
 
 
     def init_server(self):
@@ -31,25 +76,55 @@ class TermailServer:
         # Listening connections
         self.server_skt.listen(self.listen_size)
 
+
     def close_server(self):
         # Closing server socket
         self.server_skt.close()
+
 
     def accept_connection(self):
         # Accepting client connection
         client_skt, client_addr = self.server_skt.accept()
         return client_skt, client_addr
 
+
     def available(self):
         if self.connected_users < self.max_clients:
             return 1
         return 0
 
-    def client_handler(self, client_skt):
+
+    def register_user(self, name, password):
+        try:
+            self.user_db.insert_user(name, password)
+        except Exception as err:
+            raise Exception(str(err))
+
+
+    def client_handler(self, client_skt, client_addr):
         self.total_users += 1
         self.connected_users += 1
-        print("Holaaaaaaa")
-        self.connected_users -= 1
+
+        try:
+            command_bytes = client_skt.recv(self.recv_size)
+            command_str = command_bytes.decode()
+            args = command_str.split()
+            if args[CMD] == 'REGISTER':
+                try:
+                    self.register_user(args[USERNAME], args[PASSW])
+                except Exception as err:
+                    msg = "Unable to register: "+str(err)
+                    client_skt.send(msg.encode())
+                msg = "Registration of user \'"+args[USERNAME]+"\' completed"
+                client_skt.send(msg.encode())
+            else:
+                msg = "Command \'"+args[CMD]+"\' not supported"
+                client_skt.send(msg.encode())
+        except skt.error as err:
+            print("Socket error: "+str(err))
+        finally:
+            self.connected_users -= 1
+
 
 
 if __name__ == "__main__":
@@ -58,7 +133,7 @@ if __name__ == "__main__":
     IP = 0
     PORT = 1
     SLEEP_TIME = 5
-    
+
     termail = TermailServer(server_ip, server_port)
 
     try:
@@ -81,7 +156,7 @@ if __name__ == "__main__":
 
             client_handler = thr.Thread(
                 target = termail.client_handler,
-                args = (client_skt,)
+                args = (client_skt,client_addr,)
             )
             client_handler.start()
 
