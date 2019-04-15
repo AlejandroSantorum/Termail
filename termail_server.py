@@ -6,7 +6,7 @@ import time
 
 ##############################################
 RESOURCES_FOLDER = "server_resources/"
-SERVER_KEYS_FOLDER = "server_RSA_keys"
+SERVER_KEYS_FOLDER = "server_RSA_keys/"
 PRIV_KEY_FILE = "priv_RSA_key.pem"
 PUBL_KEY_FILE = "publ_RSA_key.pem"
 ##############################################
@@ -15,6 +15,7 @@ SUCCESS = 0
 CMD = 0
 USERNAME = 1
 PASSW = 2
+PK = 3
 SUBJECT = 2
 MSG = 3
 MSG_ID = 1
@@ -49,9 +50,10 @@ class Message:
 
 class User:
 
-    def __init__(self, name, password):
+    def __init__(self, name, password, rsa_publ_key):
         self.__name = name
         self.__password = password
+        self.__rsa_publ_key = rsa_publ_key
         self.__messages = []
         self.__nmessages = 0
 
@@ -60,6 +62,9 @@ class User:
 
     def get_password(self):
         return self.__password
+
+    def get_rsa_publ_key():
+        return self.__rsa_publ_key
 
     def add_message(self, from_name, subject, msg):
         self.__messages.append(Message(from_name, self.__name, subject, msg))
@@ -93,11 +98,11 @@ class UserDatabase:
         self.__users = []
         self.__nusers = 0
 
-    def insert_user(self, name, password):
+    def insert_user(self, name, password, publ_key):
         for user in self.__users:
             if user.get_name() == name:
                 raise Exception("There is already an user registered with this name")
-        self.__users.append(User(name, password))
+        self.__users.append(User(name, password, publ_key))
         self.__nusers += 1
 
     def delete_user(self, name, password):
@@ -114,6 +119,12 @@ class UserDatabase:
                 if user.get_password() == password:
                     return
         raise Exception("Incorrect username or password")
+
+    def get_user_rsa_publ_key(self, username):
+        for user in self.__users:
+            if user.get_name() == username:
+                return user.get_rsa_publ_key()
+        return "User not found in the database"
 
     def get_list_users(self):
         msg = ""
@@ -145,7 +156,7 @@ class UserDatabase:
 class TermailServer:
 
     def __init__(self, server_ip, server_port, listen_size=20, max_clients=5,
-                 recv_size=1024, log_file=None):
+                 recv_size=4096, log_file=None):
         # Server ip
         self.server_ip = server_ip
         # Server port
@@ -211,9 +222,9 @@ class TermailServer:
         return 0
 
 
-    def register_user(self, name, password):
+    def register_user(self, name, password, publ_key):
         try:
-            self.user_db.insert_user(name, password)
+            self.user_db.insert_user(name, password, publ_key)
         except Exception as err:
             raise Exception(str(err))
 
@@ -247,13 +258,17 @@ class TermailServer:
                 command_bytes = client_skt.recv(self.recv_size)
                 command_str = command_bytes.decode()
                 if len(command_str) == 0: # Client closed
-                    self.server_log_msg("User \'+"+logged_user+"\' has forced the disconnection")
+                    self.server_log_msg("User has forced the disconnection")
                     break
                 args = command_str.split()
+                # Client asking for server's public key
+                if args[CMD] == "SERVER_PUBLIC_KEY":
+                    msg = self.priv_key
+                    client_skt.send(msg)
                 # Registration command
-                if args[CMD] == 'REGISTER':
+                elif args[CMD] == 'REGISTER':
                     try:
-                        self.register_user(args[USERNAME], args[PASSW])
+                        self.register_user(args[USERNAME], args[PASSW], args[PK])
                     except Exception as err:
                         msg = "Unable to register: "+str(err)
                         client_skt.send(msg.encode())

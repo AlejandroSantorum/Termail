@@ -1,6 +1,14 @@
-import socket as skt
 from termail_util import *
+from crypto_util import *
+import socket as skt
+import os
 
+##############################################
+RESOURCES_FOLDER = "clients_resources/"
+RSA_KEYS_FOLDER = "clients_RSA_keys/"
+PRIV_RSA_KEY_FILE = "priv_RSA_key.pem"
+PUBL_RSA_KEY_FILE = "publ_RSA_key.pem"
+##############################################
 ERROR = -1
 SUCCESS = 0
 REGISTER = 1
@@ -10,14 +18,18 @@ USERNAME = 1
 SUBJECT = 2
 MSG = 3
 MSG_ID = 1
+##############################################
 
 class TermailClient:
 
-    def __init__(self, server_ip, server_port, recv_size=1024):
+    def __init__(self, server_ip, server_port, recv_size=4096):
         self.server_ip = server_ip
         self.server_port = server_port
         self.client_skt = -1
         self.recv_size = recv_size
+        self.server_publ_key = None
+        self.priv_RSA_key = None
+        self.publ_RSA_key = None
 
 
     def login(self):
@@ -53,10 +65,30 @@ class TermailClient:
             print("Password does not match. Try again")
         # Opening socket and connecting Termail server
         self._open_socket()
-        # Preparing command
-        msg = "REGISTER "+name+" "+password
+        # Asking for server public key to send user data safely
+        msg = "SERVER_PUBLIC_KEY"
         # Sending message to server
         self.client_skt.send(msg.encode())
+        server_answer = self.client_skt.recv(self.recv_size)
+        self.server_publ_key = server_answer.decode()
+        # Generating user RSA keys
+        try:
+            privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
+            publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
+            path = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name
+            try:
+                os.mkdir(path)
+            except OSError as err:
+                pass
+            self.priv_RSA_key, self.publ_RSA_key = generate_RSA_keys(privKF, publKF)
+        except ValueError as err:
+            print("Unable to generate client RSA keys: "+str(err))
+        # Preparing command
+        msg = "REGISTER "+name+" "+password+" "
+        msg = msg.encode()
+        msg +=self.publ_RSA_key
+        # Sending message to server
+        self.client_skt.send(msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         answer = server_answer.decode()
@@ -85,6 +117,7 @@ class TermailClient:
         if answer_aux[0] == "Unable":
             return ERROR
         else:
+
             return SUCCESS
 
 
@@ -167,6 +200,8 @@ if __name__ == "__main__":
                 print("Error: Login mode failed")
         except skt.error as err:
             print("Socket error: "+str(err))
+        except OSError as err:
+            print("OS Error: "+str(err))
         except KeyboardInterrupt:
             print("Exiting Termail client")
 
