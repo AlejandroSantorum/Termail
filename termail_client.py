@@ -1,4 +1,5 @@
 import socket as skt
+from termail_util import *
 
 ERROR = -1
 SUCCESS = 0
@@ -8,6 +9,7 @@ EXIT = 3
 USERNAME = 1
 SUBJECT = 2
 MSG = 3
+MSG_ID = 1
 
 class TermailClient:
 
@@ -93,6 +95,7 @@ class TermailClient:
         print("· LIST_USERS\n\t-> sends to Termail server a request to get the users' list")
         print("· SEND_MSG <Username> <Subject> <Message>\n\t-> sends message to a given user")
         print("· LIST_MSGS\n\t-> lists all your received messages")
+        print("· READ_MSG <Message ID>\n\t-> reads message with the given ID")
 
 
     def sign_out(self):
@@ -130,6 +133,16 @@ class TermailClient:
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())
+
+    def read_msg(self, msg_id):
+        # Preparing command
+        msg = "READ_MSG "+msg_id
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        print(server_answer.decode())
+
 
 
 if __name__ == "__main__":
@@ -175,11 +188,16 @@ if __name__ == "__main__":
                     print("Insufficient arguments for SEND_MSG command")
                     print("SEND_MSG <Username> <Subject> <Message>")
                     continue
-                termail.send_msg(cmd_items[USERNAME], cmd_items[SUBJECT], cmd_items[MSG])
+                message = prepare_msg(cmd_items)
+                termail.send_msg(cmd_items[USERNAME], cmd_items[SUBJECT], message)
             elif cmd_items[0] == "LIST_MSGS":
                 termail.list_messages()
-            #elif cmd_items[0] == "TEST_CONN":
-            #    termail.test_connection()
+            elif cmd_items[0] == "READ_MSG":
+                if len(cmd_items) < 2:
+                    print("Insufficient arguments for READ_MSG command")
+                    print("SEND_MSG <Message ID>")
+                    continue
+                termail.read_msg(cmd_items[MSG_ID])
             else:
                 print("Invalid command. Use HELP command if needed")
         except skt.error as err:

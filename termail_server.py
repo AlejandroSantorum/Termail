@@ -1,3 +1,4 @@
+from termail_util import *
 import socket as skt
 import threading as thr
 import time
@@ -9,16 +10,18 @@ USERNAME = 1
 PASSW = 2
 SUBJECT = 2
 MSG = 3
+MSG_ID = 1
 
+total_msgs = 0
 class Message:
-    total_msgs = 0
     def __init__(self, from_name, to_name, subject, msg):
         self.__from = from_name
         self.__to = to_name
         self.__subject = subject
         self.__msg = msg
-        self.__id = self.total_msgs
-        self.total_msgs += 1
+        global total_msgs
+        self.__id = total_msgs
+        total_msgs += 1
 
     def get_from(self):
         return self.__from
@@ -61,6 +64,18 @@ class User:
         for msg in self.__messages:
             msgs += "["+str(msg.get_id())+"] - "+msg.get_from()+": "+msg.get_subject()+"\n"
         return msgs
+
+    def get_msg(self, msg_id):
+        for msg in self.__messages:
+            ######################################################
+            print(str(msg.get_id()) + " : "+ msg.get_msg() +"\n")
+            if msg.get_id() == int(msg_id):
+                m = "From: "+msg.get_from()+"\n"
+                m += "To: "+msg.get_to()+"\n"
+                m += "Subject: "+msg.get_subject()+"\n"
+                m += "Message: "+msg.get_msg()+"\n"
+                return m
+        return "There is no message with ID="+str(msg_id)
 
 
 class UserDatabase:
@@ -109,6 +124,12 @@ class UserDatabase:
         for user in self.__users:
             if user.get_name() == username:
                 return user.get_list_msgs()
+        return "User not found in the database"
+
+    def read_msg(self, username, msg_id):
+        for user in self.__users:
+            if user.get_name() == username:
+                return user.get_msg(msg_id)
         return "User not found in the database"
 
 
@@ -199,6 +220,8 @@ class TermailServer:
     def list_messages(self, username):
         return self.user_db.list_messages(username)
 
+    def read_msg(self, username, msg_id):
+        return self.user_db.read_msg(username, msg_id)
 
 
     def client_handler(self, client_skt, client_addr):
@@ -211,6 +234,7 @@ class TermailServer:
                 command_bytes = client_skt.recv(self.recv_size)
                 command_str = command_bytes.decode()
                 if len(command_str) == 0: # Client closed
+                    self.server_log_msg("User \'+"+logged_user+"\' has forced the disconnection")
                     break
                 args = command_str.split()
                 # Registration command
@@ -247,11 +271,16 @@ class TermailServer:
                     client_skt.send(msg.encode())
                 # Sending message
                 elif args[CMD] == 'SEND_MSG':
-                    msg = self.send_msg(logged_user, args[USERNAME], args[SUBJECT], args[MSG])
+                    message = prepare_msg(args)
+                    msg = self.send_msg(logged_user, args[USERNAME], args[SUBJECT], message)
                     client_skt.send(msg.encode())
                 # User asked for his received messages
-                elif args[CMD] == "LIST_MSGS":
+                elif args[CMD] == 'LIST_MSGS':
                     msg = self.list_messages(logged_user)
+                    client_skt.send(msg.encode())
+                # User asked to read a message with a given ID
+                elif args[CMD] == 'READ_MSG':
+                    msg = self.read_msg(logged_user, args[MSG_ID])
                     client_skt.send(msg.encode())
                 # Command does not match
                 else:
