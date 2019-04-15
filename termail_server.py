@@ -1,8 +1,15 @@
 from termail_util import *
+from crypto_util import *
 import socket as skt
 import threading as thr
 import time
 
+##############################################
+RESOURCES_FOLDER = "server_resources/"
+SERVER_KEYS_FOLDER = "server_RSA_keys"
+PRIV_KEY_FILE = "priv_RSA_key.pem"
+PUBL_KEY_FILE = "publ_RSA_key.pem"
+##############################################
 ERROR = -1
 SUCCESS = 0
 CMD = 0
@@ -11,6 +18,7 @@ PASSW = 2
 SUBJECT = 2
 MSG = 3
 MSG_ID = 1
+##############################################
 
 total_msgs = 0
 class Message:
@@ -158,6 +166,11 @@ class TermailServer:
         self.user_db = UserDatabase()
         # Server log file to register activity
         self.log_file = log_file
+        # Server private and public RSA keys
+        privKF = RESOURCES_FOLDER+SERVER_KEYS_FOLDER+PRIV_KEY_FILE
+        publKF = RESOURCES_FOLDER+SERVER_KEYS_FOLDER+PUBL_KEY_FILE
+        self.priv_key, self.publ_key = generate_RSA_keys(privKF, publKF)
+
 
 
     def init_server(self):
@@ -302,8 +315,13 @@ if __name__ == "__main__":
     PORT = 1
     SLEEP_TIME = 5
 
-    termail = TermailServer(server_ip, server_port)
+    try:
+        termail = TermailServer(server_ip, server_port)
+    except Exception as err:
+        termail.server_log_msg("INIT ERROR: "+str(err))
+    termail.server_log_msg("Server is created and RSA keys have just been generated")
 
+    termail.server_log_msg("Opening server sockets")
     try:
         termail.init_server()
     except skt.error as err:
