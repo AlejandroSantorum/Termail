@@ -6,7 +6,8 @@ REGISTER = 1
 SIGN_IN = 2
 EXIT = 3
 USERNAME = 1
-MSG = 2
+SUBJECT = 2
+MSG = 3
 
 class TermailClient:
 
@@ -90,7 +91,8 @@ class TermailClient:
         print("· HELP\n\t-> shows all commands")
         print("· SIGN_OUT\n\t-> closes the connection with the Termail server")
         print("· LIST_USERS\n\t-> sends to Termail server a request to get the users' list")
-        print("· SEND_MSG <Username> <Message>")
+        print("· SEND_MSG <Username> <Subject> <Message>\n\t-> sends message to a given user")
+        print("· LIST_MSGS\n\t-> lists all your received messages")
 
 
     def sign_out(self):
@@ -111,9 +113,18 @@ class TermailClient:
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())
 
-    def send_msg(self, to_name, msg):
+    def send_msg(self, to_name, subject, msg):
         # Preparing command
-        msg = "SEND_MSG "+to_name+" "+msg
+        msg = "SEND_MSG "+to_name+" "+subject+" "+msg
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        print(server_answer.decode())
+
+    def list_messages(self):
+        # Preparing command
+        msg = "LIST_MSGS"
         # Sending message to server
         self.client_skt.send(msg.encode())
         # Waiting for response
@@ -160,11 +171,13 @@ if __name__ == "__main__":
             elif cmd_items[0] == "LIST_USERS":
                 termail.list_users()
             elif cmd_items[0] == "SEND_MSG":
-                if len(cmd_items) < 3: # Error
+                if len(cmd_items) < 4: # Error
                     print("Insufficient arguments for SEND_MSG command")
-                    print("SEND_MSG <Username> <Message>")
+                    print("SEND_MSG <Username> <Subject> <Message>")
                     continue
-                termail.send_msg(cmd_items[USERNAME], cmd_items[MSG])
+                termail.send_msg(cmd_items[USERNAME], cmd_items[SUBJECT], cmd_items[MSG])
+            elif cmd_items[0] == "LIST_MSGS":
+                termail.list_messages()
             #elif cmd_items[0] == "TEST_CONN":
             #    termail.test_connection()
             else:
@@ -174,3 +187,4 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print("Exiting Termail client")
             termail.sign_out()
+            break

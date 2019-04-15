@@ -7,14 +7,18 @@ SUCCESS = 0
 CMD = 0
 USERNAME = 1
 PASSW = 2
-MSG = 2
+SUBJECT = 2
+MSG = 3
 
 class Message:
-
-    def __init__(self, from_name, to_name, msg):
+    total_msgs = 0
+    def __init__(self, from_name, to_name, subject, msg):
         self.__from = from_name
         self.__to = to_name
+        self.__subject = subject
         self.__msg = msg
+        self.__id = self.total_msgs
+        self.total_msgs += 1
 
     def get_from(self):
         return self.__from
@@ -22,8 +26,14 @@ class Message:
     def get_to(self):
         return self.__to
 
+    def get_subject(self):
+        return self.__subject
+
     def get_msg(self):
         return self.__msg
+
+    def get_id(self):
+        return self.__id
 
 
 class User:
@@ -40,9 +50,17 @@ class User:
     def get_password(self):
         return self.__password
 
-    def add_message(self, from_name, msg):
-        self.__messages.append(Message(from_name, self.__name, msg))
+    def add_message(self, from_name, subject, msg):
+        self.__messages.append(Message(from_name, self.__name, subject, msg))
         self.__nmessages += 1
+
+    def get_list_msgs(self):
+        if self.__nmessages == 0:
+            return "There is no messages"
+        msgs = ""
+        for msg in self.__messages:
+            msgs += "["+str(msg.get_id())+"] - "+msg.get_from()+": "+msg.get_subject()+"\n"
+        return msgs
 
 
 class UserDatabase:
@@ -80,12 +98,19 @@ class UserDatabase:
             msg += user.get_name() + "\n"
         return msg
 
-    def send_message(self, from_name, to_name, msg):
+    def send_message(self, from_name, to_name, subject, msg):
         for user in self.__users:
             if user.get_name() == to_name:
-                user.add_message(from_name, msg)
+                user.add_message(from_name, subject, msg)
                 return "Message delivered successfully to \'"+to_name+"\'"
         return "User \'"+to_name+"\' not found"
+
+    def list_messages(self, username):
+        for user in self.__users:
+            if user.get_name() == username:
+                return user.get_list_msgs()
+        return "User not found in the database"
+
 
 
 class TermailServer:
@@ -168,8 +193,11 @@ class TermailServer:
     def list_users(self):
         return self.user_db.get_list_users()
 
-    def send_msg(self, from_name, to_name, msg):
-        return self.user_db.send_message(from_name, to_name, msg)
+    def send_msg(self, from_name, to_name, subject, msg):
+        return self.user_db.send_message(from_name, to_name, subject, msg)
+
+    def list_messages(self, username):
+        return self.user_db.list_messages(username)
 
 
 
@@ -219,7 +247,11 @@ class TermailServer:
                     client_skt.send(msg.encode())
                 # Sending message
                 elif args[CMD] == 'SEND_MSG':
-                    msg = self.send_msg(logged_user, args[USERNAME], args[MSG])
+                    msg = self.send_msg(logged_user, args[USERNAME], args[SUBJECT], args[MSG])
+                    client_skt.send(msg.encode())
+                # User asked for his received messages
+                elif args[CMD] == "LIST_MSGS":
+                    msg = self.list_messages(logged_user)
                     client_skt.send(msg.encode())
                 # Command does not match
                 else:
