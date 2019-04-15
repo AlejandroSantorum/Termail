@@ -7,6 +7,7 @@ SUCCESS = 0
 CMD = 0
 USERNAME = 1
 PASSW = 2
+MSG = 2
 
 class Message:
 
@@ -83,14 +84,14 @@ class UserDatabase:
         for user in self.__users:
             if user.get_name() == to_name:
                 user.add_message(from_name, msg)
-                return
-        raise Exception("User not found")
+                return "Message delivered successfully to \'"+to_name+"\'"
+        return "User \'"+to_name+"\' not found"
 
 
 class TermailServer:
 
     def __init__(self, server_ip, server_port, listen_size=20, max_clients=5,
-                 recv_size=1024):
+                 recv_size=1024, log_file=None):
         # Server ip
         self.server_ip = server_ip
         # Server port
@@ -109,6 +110,8 @@ class TermailServer:
         self.recv_size = recv_size
         # User database
         self.user_db = UserDatabase()
+        # Server log file to register activity
+        self.log_file = log_file
 
 
     def init_server(self):
@@ -125,6 +128,16 @@ class TermailServer:
     def close_server(self):
         # Closing server socket
         self.server_skt.close()
+
+
+    def server_log_msg(self, msg):
+        if self.log_file != None:
+            f = open(self.log_file, "a")
+            f.write(msg)
+            f.close()
+        else:
+            print(msg)
+
 
 
     def accept_connection(self):
@@ -155,6 +168,10 @@ class TermailServer:
     def list_users(self):
         return self.user_db.get_list_users()
 
+    def send_msg(self, from_name, to_name, msg):
+        return self.user_db.send_message(from_name, to_name, msg)
+
+
 
     def client_handler(self, client_skt, client_addr):
         self.total_users += 1
@@ -176,6 +193,7 @@ class TermailServer:
                         msg = "Unable to register: "+str(err)
                         client_skt.send(msg.encode())
                     msg = "Registration of user \'"+args[USERNAME]+"\' completed"
+                    self.server_log_msg(msg)
                     logged_user = args[USERNAME]
                     client_skt.send(msg.encode())
                 # Sign in command
@@ -187,10 +205,11 @@ class TermailServer:
                         client_skt.send(msg.encode())
                     msg = "Sign in as \'"+args[USERNAME]+"\' successfully"
                     logged_user = args[USERNAME]
+                    self.server_log_msg("Client \'"+logged_user+"\' has just signed in")
                     client_skt.send(msg.encode())
                 # Sign out command
                 elif args[CMD] == 'SIGN_OUT':
-                    print("Client \'"+logged_user+"\' has just signed out")
+                    self.server_log_msg("Client \'"+logged_user+"\' has just signed out")
                     client_skt.close()
                     self.connected_users -= 1
                     return
@@ -198,11 +217,16 @@ class TermailServer:
                 elif args[CMD] == 'LIST_USERS':
                     msg = self.list_users()
                     client_skt.send(msg.encode())
+                # Sending message
+                elif args[CMD] == 'SEND_MSG':
+                    msg = self.send_msg(logged_user, args[USERNAME], args[MSG])
+                    client_skt.send(msg.encode())
+                # Command does not match
                 else:
                     msg = "Command \'"+args[CMD]+"\' not supported"
                     client_skt.send(msg.encode())
             except skt.error as err:
-                print("Socket error: "+str(err))
+                self.server_log_msg("Socket error: "+str(err))
                 client_skt.close()
                 self.connected_users -= 1
         client_skt.close()
@@ -222,20 +246,20 @@ if __name__ == "__main__":
     try:
         termail.init_server()
     except skt.error as err:
-        print("Unable to initialize the server: "+str(err))
-    print("Listening in " + server_ip + ":" + str(server_port))
+        termail.server_log_msg("Unable to initialize the server: "+str(err))
+    termail.server_log_msg("Listening in " + server_ip + ":" + str(server_port))
 
     # Accepting connections
     while(True):
         # Checking the server is available to accept another client
         if not termail.available():
-            print("Maximum client number reached, try to connect later")
+            termail.server_log_msg("Maximum client number reached, try to connect later")
             time.sleep(SLEEP_TIME)
             continue
         try:
             client_skt, client_addr = termail.accept_connection()
             # client_addr[0] = client_ip , client_addr[1] = client_port
-            print("Establish connection from" + client_addr[IP] + ":" + str(client_addr[PORT]))
+            termail.server_log_msg("Establish connection from" + client_addr[IP] + ":" + str(client_addr[PORT]))
 
             client_handler = thr.Thread(
                 target = termail.client_handler,
@@ -244,8 +268,8 @@ if __name__ == "__main__":
             client_handler.start()
 
         except skt.error as err:
-            print("Socket error: "+str(err))
+            termail.server_log_msg("Socket error: "+str(err))
         except KeyboardInterrupt:
-            print("Closing Termail server")
+            termail.server_log_msg("Closing Termail server")
             termail.close_server()
             exit()

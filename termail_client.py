@@ -5,6 +5,8 @@ SUCCESS = 0
 REGISTER = 1
 SIGN_IN = 2
 EXIT = 3
+USERNAME = 1
+MSG = 2
 
 class TermailClient:
 
@@ -88,6 +90,7 @@ class TermailClient:
         print("· HELP\n\t-> shows all commands")
         print("· SIGN_OUT\n\t-> closes the connection with the Termail server")
         print("· LIST_USERS\n\t-> sends to Termail server a request to get the users' list")
+        print("· SEND_MSG <Username> <Message>")
 
 
     def sign_out(self):
@@ -102,6 +105,15 @@ class TermailClient:
     def list_users(self):
         # Preparing command
         msg = "LIST_USERS"
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        print(server_answer.decode())
+
+    def send_msg(self, to_name, msg):
+        # Preparing command
+        msg = "SEND_MSG "+to_name+" "+msg
         # Sending message to server
         self.client_skt.send(msg.encode())
         # Waiting for response
@@ -147,6 +159,12 @@ if __name__ == "__main__":
                 break
             elif cmd_items[0] == "LIST_USERS":
                 termail.list_users()
+            elif cmd_items[0] == "SEND_MSG":
+                if len(cmd_items) < 3: # Error
+                    print("Insufficient arguments for SEND_MSG command")
+                    print("SEND_MSG <Username> <Message>")
+                    continue
+                termail.send_msg(cmd_items[USERNAME], cmd_items[MSG])
             #elif cmd_items[0] == "TEST_CONN":
             #    termail.test_connection()
             else:
