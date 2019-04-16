@@ -307,6 +307,7 @@ class TermailServer:
                     except Exception as err:
                         msg = "Unable to register: "+str(err)
                         client_skt.send(msg.encode())
+                        continue
                     msg = "Registration of user \'"+args[USERNAME]+"\' completed"
                     self.server_log_msg(msg)
                     logged_user = args[USERNAME]
@@ -318,6 +319,7 @@ class TermailServer:
                     except Exception as err:
                         msg = "Unable to sign in: "+str(err)
                         client_skt.send(msg.encode())
+                        continue
                     msg = "Sign in as \'"+args[USERNAME]+"\' successfully"
                     logged_user = args[USERNAME]
                     self.server_log_msg("Client \'"+logged_user+"\' has just signed in")
@@ -351,8 +353,6 @@ class TermailServer:
                     client_skt.send(msg.encode())
             except skt.error as err:
                 self.server_log_msg("Socket error: "+str(err))
-                client_skt.close()
-                self.connected_users -= 1
         client_skt.close()
         self.connected_users -= 1
 
@@ -369,6 +369,7 @@ if __name__ == "__main__":
         termail = TermailServer(server_ip, server_port)
     except Exception as err:
         termail.server_log_msg("INIT ERROR: "+str(err))
+        exit()
     termail.server_log_msg("Server is created and RSA keys have just been generated")
 
     termail.server_log_msg("Opening server sockets")
@@ -376,6 +377,7 @@ if __name__ == "__main__":
         termail.init_server()
     except skt.error as err:
         termail.server_log_msg("Unable to initialize the server: "+str(err))
+        exit()
     termail.server_log_msg("Listening in " + server_ip + ":" + str(server_port))
 
     # Accepting connections
@@ -398,7 +400,9 @@ if __name__ == "__main__":
 
         except skt.error as err:
             termail.server_log_msg("Socket error: "+str(err))
+            termail.close_server()
+            break()
         except KeyboardInterrupt:
             termail.server_log_msg("Closing Termail server")
             termail.close_server()
-            exit()
+            break()

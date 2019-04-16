@@ -52,7 +52,7 @@ class TermailClient:
                 print("["+str(SIGN_IN)+"] Sign in")
                 print("["+str(EXIT)+"] Exit")
                 mode = int(input())
-                if mode > 3 or mode < 1:
+                if mode > EXIT or mode < REGISTER:
                     print("Please, introduce a valid option")
                 else:
                     return mode
@@ -97,6 +97,7 @@ class TermailClient:
             self.priv_RSA_key, self.publ_RSA_key = generate_RSA_keys(privKF, publKF)
         except ValueError as err:
             print("Unable to generate client RSA keys: "+str(err))
+            return ERROR
 
         # Diffie-Hellman handshake
         self.p = get_random_nbit_prime(NBITS)
@@ -229,10 +230,13 @@ if __name__ == "__main__":
                 print("Error: Login mode failed")
         except skt.error as err:
             print("Socket error: "+str(err))
+            exit()
         except OSError as err:
             print("OS Error: "+str(err))
+            exit()
         except KeyboardInterrupt:
             print("Exiting Termail client")
+            exit()
         #except Exception as err:
         #    print("An exception occurred: "+str(err))
 
@@ -268,6 +272,8 @@ if __name__ == "__main__":
                 print("Invalid command. Use HELP command if needed")
         except skt.error as err:
             print("Socket error: "+str(err))
+            termail.sign_out()
+            break
         except KeyboardInterrupt:
             print("Exiting Termail client")
             termail.sign_out()
