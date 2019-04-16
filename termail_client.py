@@ -1,11 +1,13 @@
 from termail_util import *
 from crypto_util import *
+# Public and private keys for RSA algorithm
+from Crypto.PublicKey import RSA
 import socket as skt
 import os
 
 ##############################################
 RESOURCES_FOLDER = "clients_resources/"
-RSA_KEYS_FOLDER = "clients_RSA_keys/"
+RSA_KEYS_FOLDER = "clients_keys/"
 PRIV_RSA_KEY_FILE = "priv_RSA_key.pem"
 PUBL_RSA_KEY_FILE = "publ_RSA_key.pem"
 ##############################################
@@ -18,6 +20,7 @@ USERNAME = 1
 SUBJECT = 2
 MSG = 3
 MSG_ID = 1
+NBITS = 64
 ##############################################
 
 class TermailClient:
@@ -25,11 +28,20 @@ class TermailClient:
     def __init__(self, server_ip, server_port, recv_size=4096):
         self.server_ip = server_ip
         self.server_port = server_port
+        # Socket
         self.client_skt = -1
+        # Maximum buffer size to get data from server
         self.recv_size = recv_size
+        # RSA keys
         self.server_publ_key = None
         self.priv_RSA_key = None
         self.publ_RSA_key = None
+        # Diffie-Hellman numbers
+        self.p = None
+        self.g = None
+        self.a = None
+        self.A = None
+        self.B = None
 
 
     def login(self):
@@ -63,8 +75,10 @@ class TermailClient:
             if password == password2:
                 break
             print("Password does not match. Try again")
+
         # Opening socket and connecting Termail server
         self._open_socket()
+
         # Asking for server public key to send user data safely
         msg = "SERVER_PUBLIC_KEY"
         # Sending message to server
@@ -83,6 +97,17 @@ class TermailClient:
             self.priv_RSA_key, self.publ_RSA_key = generate_RSA_keys(privKF, publKF)
         except ValueError as err:
             print("Unable to generate client RSA keys: "+str(err))
+
+        # Diffie-Hellman handshake
+        self.p = get_random_nbit_prime(NBITS)
+        self.g = get_element_in_Zp(self.p)
+        self.a = get_randint_range(1, self.p-1)
+        self.A = pow(self.g, self.a, self.p)
+        msg = "SETUP_DH "+str(self.p)+" "+str(self.g)+" "+str(self.A)
+        self.client_skt.send(msg.encode())
+        B = self.client_skt.recv(self.recv_size)
+        self.B = B.decode()
+        print("B = "+self.B)###################################
         # Preparing command
         msg = "REGISTER "+name+" "+password+" "
         msg = msg.encode()
@@ -117,7 +142,11 @@ class TermailClient:
         if answer_aux[0] == "Unable":
             return ERROR
         else:
-
+            privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
+            publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
+            # Getting keys from the files where they're stored
+            self.priv_RSA_key = RSA.import_key(open(privKF).read())
+            self.publ_RSA_key = RSA.import_key(open(publKF).read())
             return SUCCESS
 
 
@@ -204,6 +233,8 @@ if __name__ == "__main__":
             print("OS Error: "+str(err))
         except KeyboardInterrupt:
             print("Exiting Termail client")
+        #except Exception as err:
+        #    print("An exception occurred: "+str(err))
 
     # Once registered or signed in, you can send several commands
     while 1:

@@ -19,6 +19,9 @@ PK = 3
 SUBJECT = 2
 MSG = 3
 MSG_ID = 1
+GENERATOR = 1
+MODULO = 2
+A = 3
 ##############################################
 
 total_msgs = 0
@@ -50,10 +53,14 @@ class Message:
 
 class User:
 
-    def __init__(self, name, password, rsa_publ_key):
+    def __init__(self, name, password, rsa_publ_key, g, p, A, b):
         self.__name = name
         self.__password = password
         self.__rsa_publ_key = rsa_publ_key
+        self.__g = g
+        self.__p = p
+        self.__A = A
+        self.__b = b
         self.__messages = []
         self.__nmessages = 0
 
@@ -63,8 +70,20 @@ class User:
     def get_password(self):
         return self.__password
 
-    def get_rsa_publ_key():
+    def get_rsa_publ_key(self):
         return self.__rsa_publ_key
+
+    def get_g(self):
+        return self.__g
+
+    def get_p(self):
+        return self.__p
+
+    def get_A(self):
+        return self.__A
+
+    def get_b(self):
+        return self.__b
 
     def add_message(self, from_name, subject, msg):
         self.__messages.append(Message(from_name, self.__name, subject, msg))
@@ -98,11 +117,13 @@ class UserDatabase:
         self.__users = []
         self.__nusers = 0
 
-    def insert_user(self, name, password, publ_key):
+    def insert_user(self, name, password, publ_key, g, p, A, b):
+        if g==None or p==None or A==None or b==None:
+            raise Exception("There is no trace of Diffie-Hellman handshake")
         for user in self.__users:
             if user.get_name() == name:
                 raise Exception("There is already an user registered with this name")
-        self.__users.append(User(name, password, publ_key))
+        self.__users.append(User(name, password, publ_key, g, p, A, b))
         self.__nusers += 1
 
     def delete_user(self, name, password):
@@ -253,6 +274,11 @@ class TermailServer:
         self.connected_users += 1
 
         logged_user = None
+        generator = None
+        prime = None
+        A = None
+        b = None
+        B = None
         while 1:
             try:
                 command_bytes = client_skt.recv(self.recv_size)
@@ -265,10 +291,19 @@ class TermailServer:
                 if args[CMD] == "SERVER_PUBLIC_KEY":
                     msg = self.priv_key
                     client_skt.send(msg)
+                elif args[CMD] == "SETUP_DH":
+                    ########################
+                    prime = int(args[MODULO])
+                    generator = int(args[GENERATOR])
+                    b = get_randint_range(1, prime-1)
+                    B = pow(generator, b, prime)
+                    msg = str(B)
+                    print(msg)
+                    client_skt.send(msg.encode())
                 # Registration command
                 elif args[CMD] == 'REGISTER':
                     try:
-                        self.register_user(args[USERNAME], args[PASSW], args[PK])
+                        self.register_user(args[USERNAME], args[PASSW], args[PK], generator, prime, A, b)
                     except Exception as err:
                         msg = "Unable to register: "+str(err)
                         client_skt.send(msg.encode())

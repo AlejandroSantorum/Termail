@@ -9,6 +9,10 @@
 
 # Pseudo-random byte generator
 from Crypto.Random import get_random_bytes
+# Pseudo-random intenger generator
+from Crypto.Random.random import randint
+# Pseudo-random prime generator
+from Crypto.Util.number import getPrime
 # Symmetric cipher (AES) and asymmetric cipher (RSA)
 from Crypto.Cipher import AES, PKCS1_OAEP
 # Padding to cipher using AES in mode CBC
@@ -20,6 +24,7 @@ from Crypto.PublicKey import RSA
 # Hash SHA256
 from Crypto.Hash import SHA256
 # Other
+from math import gcd
 import sys
 
 
@@ -215,6 +220,22 @@ def verify_signature(message, digital_sign, sender_publ_key):
         return False
 
 
+def _check_coprime(n,m):
+    return gcd(n,m)==1
+
+def get_element_in_Zp(prime):
+    while 1:
+        aux = randint(2,prime)
+        if _check_coprime(aux,prime):
+            return aux
+    return -1
+
+
+def get_random_nbit_prime(n):
+    return getPrime(n)
+
+def get_randint_range(a,b):
+    return randint(a,b)
 
 # Testing module
 if __name__ == "__main__":
