@@ -21,7 +21,7 @@ MSG = 3
 MSG_ID = 1
 GENERATOR = 1
 MODULO = 2
-A = 3
+A_IND = 3
 ##############################################
 
 total_msgs = 0
@@ -243,9 +243,9 @@ class TermailServer:
         return 0
 
 
-    def register_user(self, name, password, publ_key):
+    def register_user(self, name, password, publ_key, g, p, A, b):
         try:
-            self.user_db.insert_user(name, password, publ_key)
+            self.user_db.insert_user(name, password, publ_key, g, p, A, b)
         except Exception as err:
             raise Exception(str(err))
 
@@ -295,6 +295,7 @@ class TermailServer:
                     ########################
                     prime = int(args[MODULO])
                     generator = int(args[GENERATOR])
+                    A = int(args[A_IND])
                     b = get_randint_range(1, prime-1)
                     B = pow(generator, b, prime)
                     msg = str(B)
@@ -401,8 +402,8 @@ if __name__ == "__main__":
         except skt.error as err:
             termail.server_log_msg("Socket error: "+str(err))
             termail.close_server()
-            break()
+            break
         except KeyboardInterrupt:
             termail.server_log_msg("Closing Termail server")
             termail.close_server()
-            break()
+            break

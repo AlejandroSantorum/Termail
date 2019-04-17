@@ -67,6 +67,18 @@ class TermailClient:
         self.client_skt.connect((self.server_ip, self.server_port))
 
 
+    def _diffie_hellman_handshake(self):
+        self.p = get_random_nbit_prime(NBITS)
+        self.g = get_element_in_Zp(self.p)
+        self.a = get_randint_range(1, self.p-1)
+        self.A = pow(self.g, self.a, self.p)
+        msg = "SETUP_DH "+str(self.p)+" "+str(self.g)+" "+str(self.A)
+        self.client_skt.send(msg.encode())
+        B = self.client_skt.recv(self.recv_size)
+        self.B = B.decode()
+        print("B = "+self.B)###################################
+
+
     def register(self):
         name = input("Introduce nickname to be registered: ")
         while 1:
@@ -85,6 +97,7 @@ class TermailClient:
         self.client_skt.send(msg.encode())
         server_answer = self.client_skt.recv(self.recv_size)
         self.server_publ_key = server_answer.decode()
+
         # Generating user RSA keys
         try:
             privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
@@ -99,16 +112,8 @@ class TermailClient:
             print("Unable to generate client RSA keys: "+str(err))
             return ERROR
 
-        # Diffie-Hellman handshake
-        self.p = get_random_nbit_prime(NBITS)
-        self.g = get_element_in_Zp(self.p)
-        self.a = get_randint_range(1, self.p-1)
-        self.A = pow(self.g, self.a, self.p)
-        msg = "SETUP_DH "+str(self.p)+" "+str(self.g)+" "+str(self.A)
-        self.client_skt.send(msg.encode())
-        B = self.client_skt.recv(self.recv_size)
-        self.B = B.decode()
-        print("B = "+self.B)###################################
+        # Negotiating DH's session key with Termail server
+        self._diffie_hellman_handshake()
         # Preparing command
         msg = "REGISTER "+name+" "+password+" "
         msg = msg.encode()
@@ -131,6 +136,10 @@ class TermailClient:
         password = input("Introduce password: ")
         # Opening socket and connecting Termail server
         self._open_socket()
+
+        # Negotiating DH's session key with Termail server
+        self._diffie_hellman_handshake()
+
         # Preparing command
         msg = "SIGN_IN "+name+" "+password
         # Sending message to server
@@ -245,7 +254,10 @@ if __name__ == "__main__":
         try:
             command = input("Introduce command: ")
             cmd_items = command.split()
-            if cmd_items[0] == "HELP":
+            if len(cmd_items) == 0:
+                print("Do not introduce blank commands")
+                continue
+            elif cmd_items[0] == "HELP":
                 termail.print_help()
             elif cmd_items[0] == "SIGN_OUT":
                 termail.sign_out()
