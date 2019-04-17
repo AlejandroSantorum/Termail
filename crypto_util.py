@@ -71,6 +71,8 @@ def generate_RSA_keys(priv_key_file, publ_key_file):
 #   Raises ValueError in error case
 ################################################################
 def digital_sign(message, sender_priv_key_file):
+    if sender_priv_key_file==None and sender_priv_key==None:
+        raise ValueError("ERROR: No private RSA key provided")
     try:
         # Getting key from the file where it's stored
         key = RSA.import_key(open(sender_priv_key_file).read())
@@ -100,7 +102,7 @@ def digital_sign(message, sender_priv_key_file):
 ################################################################
 SESSION_KEY_BYTES = 32
 BLOCK_SIZE = 16
-def encrypt_AES256_CBC(message, digital_sign=None):
+def encrypt_AES256_CBC(message, digital_sign=None, symm_key=None):
     try:
         # Concatenating signature+plain text if signature is provided
         if digital_sign != None:
@@ -109,8 +111,11 @@ def encrypt_AES256_CBC(message, digital_sign=None):
             text = message
         # Padding text, so its length is multiple of block size (16)
         text_pad = pad(text, BLOCK_SIZE)
-        # Getting session key (symmetric key) of 32 bytes
-        session_key = get_random_bytes(SESSION_KEY_BYTES)
+        if symm_key == None:
+            # Getting session key (symmetric key) of 32 bytes
+            session_key = get_random_bytes(SESSION_KEY_BYTES)
+        else:
+            session_key = symm_key
         # Initialization vector of legth as the block size (16)
         iv = get_random_bytes(BLOCK_SIZE)
         # Symmetric AES256 Cipher
@@ -216,8 +221,9 @@ def verify_signature(message, digital_sign, sender_publ_key):
         # Checking if hash of the ciphered message is equal to the digital sign
         pkcs1_15.new(sender_publ_key).verify(h, digital_sign)
         return True
-    except:
-        return False
+    except Exception as err:
+        raise Exception("ERROR Verifying sign: "+str(err))
+        #return False
 
 
 def _check_coprime(n,m):

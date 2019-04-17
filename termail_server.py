@@ -7,6 +7,7 @@ import time
 ##############################################
 RESOURCES_FOLDER = "server_resources/"
 SERVER_KEYS_FOLDER = "server_RSA_keys/"
+SERVER_CLIENTS_KEYS_FOLDER = "server_clients_keys/"
 PRIV_KEY_FILE = "priv_RSA_key.pem"
 PUBL_KEY_FILE = "publ_RSA_key.pem"
 ##############################################
@@ -56,7 +57,11 @@ class User:
     def __init__(self, name, password, rsa_publ_key, g, p, A, b):
         self.__name = name
         self.__password = password
-        self.__rsa_publ_key = rsa_publ_key
+        path = RESOURCES_FOLDER+SERVER_CLIENTS_KEYS_FOLDER+name+"_"+PUBL_KEY_FILE
+        file_out = open(path, "wb")
+        file_out.write(rsa_publ_key.encode())
+        file_out.close()
+        self.__rsa_publ_key_file = path
         self.__g = g
         self.__p = p
         self.__A = A
@@ -70,8 +75,8 @@ class User:
     def get_password(self):
         return self.__password
 
-    def get_rsa_publ_key(self):
-        return self.__rsa_publ_key
+    def get_rsa_publ_key_file(self):
+        return self.__rsa_publ_key_file
 
     def get_g(self):
         return self.__g
@@ -304,7 +309,8 @@ class TermailServer:
                 # Registration command
                 elif args[CMD] == 'REGISTER':
                     try:
-                        self.register_user(args[USERNAME], args[PASSW], args[PK], generator, prime, A, b)
+                        rsa_publ_key = parse_RSA_key(args, PK)
+                        self.register_user(args[USERNAME], args[PASSW], rsa_publ_key, generator, prime, A, b)
                     except Exception as err:
                         msg = "Unable to register: "+str(err)
                         client_skt.send(msg.encode())

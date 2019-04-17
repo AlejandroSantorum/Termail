@@ -76,7 +76,6 @@ class TermailClient:
         self.client_skt.send(msg.encode())
         B = self.client_skt.recv(self.recv_size)
         self.B = B.decode()
-        print("B = "+self.B)###################################
 
 
     def register(self):
