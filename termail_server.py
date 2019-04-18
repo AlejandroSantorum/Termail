@@ -20,8 +20,8 @@ PK = 3
 SUBJECT = 2
 MSG = 3
 MSG_ID = 1
-GENERATOR = 1
-MODULO = 2
+MODULO = 1
+GENERATOR = 2
 A_IND = 3
 ##############################################
 
@@ -146,10 +146,10 @@ class UserDatabase:
                     return
         raise Exception("Incorrect username or password")
 
-    def get_user_rsa_publ_key(self, username):
+    def get_user_rsa_publ_key_file(self, username):
         for user in self.__users:
             if user.get_name() == username:
-                return user.get_rsa_publ_key()
+                return user.get_rsa_publ_key_file()
         return "User not found in the database"
 
     def get_list_users(self):
@@ -284,30 +284,60 @@ class TermailServer:
         A = None
         b = None
         B = None
+        K = None
         while 1:
             try:
                 command_bytes = client_skt.recv(self.recv_size)
-                command_str = command_bytes.decode()
-                if len(command_str) == 0: # Client closed
-                    self.server_log_msg("User has forced the disconnection")
-                    break
+                try:
+                    command_str = command_bytes.decode()
+                    if len(command_str) == 0: # Client closed
+                        self.server_log_msg("User has forced the disconnection")
+                        break
+                    args = command_str.split()
+                    # Client asking for server's public key
+                    if args[CMD] == "SERVER_PUBLIC_KEY":
+                        msg = self.priv_key
+                        client_skt.send(msg)
+                        continue
+                    elif args[CMD] == "SETUP_DH":
+                        # Dffie-Hellman handshake
+                        prime = int(args[MODULO])
+                        generator = int(args[GENERATOR])
+                        A = int(args[A_IND])
+                        b = get_randint_range(1, prime-1)
+                        B = pow(generator, b, prime)
+                        msg = str(B)
+                        # Sending B (g^b) to client
+                        client_skt.send(msg.encode())
+                        K = pow(A, b, prime)
+                        continue
+                    else:
+                        msg = "Command \'"+args[CMD]+"\' not supported"
+                        client_skt.send(msg.encode())
+                except UnicodeDecodeError:
+                    # This exception is raised when the command comes encrypted
+                    pass
+                # Decrypting command
+                auxK = str(K).encode()
+                if logged_user == None:
+                    # Command for registration or sign in
+                    # If it is REGISTER cmd, signature is not checked
+                    # If it is SIGN_IN, signature is checked later
+                    decrypted_cmd, signature = decrypt_command(command_bytes, auxK)
+                else:
+                    # Rest of commands
+                    decrypted_cmd, signature = decrypt_command(command_bytes, auxK)
+                    publKF = self.user_db.get_user_rsa_publ_key_file(logged_user)
+                    try:
+                        verify_digital_sign(decrypted_cmd, signature, publKF)
+                    except Exception as err:
+                        msg = "Invalid signature: "+str(err)
+                        client_skt.send(msg.encode())
+                        continue
+                command_str = decrypted_cmd.decode()
                 args = command_str.split()
-                # Client asking for server's public key
-                if args[CMD] == "SERVER_PUBLIC_KEY":
-                    msg = self.priv_key
-                    client_skt.send(msg)
-                elif args[CMD] == "SETUP_DH":
-                    ########################
-                    prime = int(args[MODULO])
-                    generator = int(args[GENERATOR])
-                    A = int(args[A_IND])
-                    b = get_randint_range(1, prime-1)
-                    B = pow(generator, b, prime)
-                    msg = str(B)
-                    print(msg)
-                    client_skt.send(msg.encode())
                 # Registration command
-                elif args[CMD] == 'REGISTER':
+                if args[CMD] == 'REGISTER':
                     try:
                         rsa_publ_key = parse_RSA_key(args, PK)
                         self.register_user(args[USERNAME], args[PASSW], rsa_publ_key, generator, prime, A, b)
@@ -322,6 +352,8 @@ class TermailServer:
                 # Sign in command
                 elif args[CMD] == 'SIGN_IN':
                     try:
+                        publKF = self.user_db.get_user_rsa_publ_key_file(args[USERNAME])
+                        verify_digital_sign(decrypted_cmd, signature, publKF)
                         self.sign_in_user(args[USERNAME], args[PASSW])
                     except Exception as err:
                         msg = "Unable to sign in: "+str(err)
@@ -336,6 +368,7 @@ class TermailServer:
                     self.server_log_msg("Client \'"+logged_user+"\' has just signed out")
                     client_skt.close()
                     self.connected_users -= 1
+                    logged_user = None
                     return
                 # List users command
                 elif args[CMD] == 'LIST_USERS':

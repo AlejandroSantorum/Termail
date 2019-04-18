@@ -1,9 +1,9 @@
 from termail_util import *
 from crypto_util import *
-# Public and private keys for RSA algorithm
-from Crypto.PublicKey import RSA
 import socket as skt
 import os
+# Public and private keys for RSA algorithm
+from Crypto.PublicKey import RSA
 
 ##############################################
 RESOURCES_FOLDER = "clients_resources/"
@@ -42,6 +42,7 @@ class TermailClient:
         self.a = None
         self.A = None
         self.B = None
+        self.K = None
 
 
     def login(self):
@@ -75,7 +76,8 @@ class TermailClient:
         msg = "SETUP_DH "+str(self.p)+" "+str(self.g)+" "+str(self.A)
         self.client_skt.send(msg.encode())
         B = self.client_skt.recv(self.recv_size)
-        self.B = B.decode()
+        self.B = int(B.decode())
+        self.K = pow(self.B, self.a, self.p)
 
 
     def register(self):
@@ -116,13 +118,15 @@ class TermailClient:
         # Preparing command
         msg = "REGISTER "+name+" "+password+" "
         msg = msg.encode()
-        msg +=self.publ_RSA_key
+        msg += self.publ_RSA_key
+        # Encrypting command (at registration signature is not needed)
+        cipher_msg = encrypt_command(msg, str(self.K).encode(), privKF)
         # Sending message to server
-        self.client_skt.send(msg)
+        self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         answer = server_answer.decode()
-        print(answer)
+        print("Respuesta servidor al registro: ", answer)
         answer_aux = answer.split()
         if answer_aux[0] == "Unable":
             return ERROR
