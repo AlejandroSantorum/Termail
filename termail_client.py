@@ -8,6 +8,7 @@ from Crypto.PublicKey import RSA
 ##############################################
 RESOURCES_FOLDER = "clients_resources/"
 RSA_KEYS_FOLDER = "clients_keys/"
+SERVER_RSA_PUBL_KEY_FILE = "server_RSA_publ_key.pem"
 PRIV_RSA_KEY_FILE = "priv_RSA_key.pem"
 PUBL_RSA_KEY_FILE = "publ_RSA_key.pem"
 ##############################################
@@ -34,6 +35,7 @@ class TermailClient:
         self.recv_size = recv_size
         # RSA keys
         self.server_publ_key = None
+        self.server_publ_key_file = None
         self.priv_RSA_key = None
         self.publ_RSA_key = None
         self.priv_RSA_key_file = None
@@ -100,6 +102,9 @@ class TermailClient:
         self.client_skt.send(msg.encode())
         server_answer = self.client_skt.recv(self.recv_size)
         self.server_publ_key = server_answer.decode()
+        f = open(RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE, "wb")
+        f.write(server_answer)
+        f.close()
 
         # Generating user RSA keys
         try:
