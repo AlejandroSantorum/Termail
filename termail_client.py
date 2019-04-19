@@ -36,6 +36,8 @@ class TermailClient:
         self.server_publ_key = None
         self.priv_RSA_key = None
         self.publ_RSA_key = None
+        self.priv_RSA_key_file = None
+        self.publ_RSA_key_file = None
         # Diffie-Hellman numbers
         self.p = None
         self.g = None
@@ -109,6 +111,8 @@ class TermailClient:
             except OSError as err:
                 pass
             self.priv_RSA_key, self.publ_RSA_key = generate_RSA_keys(privKF, publKF)
+            self.priv_RSA_key_file = privKF
+            self.publ_RSA_key_file = publKF
         except ValueError as err:
             print("Unable to generate client RSA keys: "+str(err))
             return ERROR
@@ -119,14 +123,14 @@ class TermailClient:
         msg = "REGISTER "+name+" "+password+" "
         msg = msg.encode()
         msg += self.publ_RSA_key
-        # Encrypting command (at registration signature is not needed)
-        cipher_msg = encrypt_command(msg, str(self.K).encode(), privKF)
+        # Encrypting command (at registration signature wont be verified)
+        cipher_msg = encrypt_command(msg, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         answer = server_answer.decode()
-        print("Respuesta servidor al registro: ", answer)
+        print(answer)
         answer_aux = answer.split()
         if answer_aux[0] == "Unable":
             return ERROR
@@ -143,10 +147,18 @@ class TermailClient:
         # Negotiating DH's session key with Termail server
         self._diffie_hellman_handshake()
 
+        # Storing RSA keys files
+        privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
+        publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
+        self.priv_RSA_key_file = privKF
+        self.publ_RSA_key_file = publKF
+
         # Preparing command
         msg = "SIGN_IN "+name+" "+password
+        msg_bytes = msg.encode()
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), privKF)
         # Sending message to server
-        self.client_skt.send(msg.encode())
+        self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         answer = server_answer.decode()
@@ -155,8 +167,6 @@ class TermailClient:
         if answer_aux[0] == "Unable":
             return ERROR
         else:
-            privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
-            publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
             # Getting keys from the files where they're stored
             self.priv_RSA_key = RSA.import_key(open(privKF).read())
             self.publ_RSA_key = RSA.import_key(open(publKF).read())
@@ -176,8 +186,11 @@ class TermailClient:
     def sign_out(self):
         # Preparing command
         msg = "SIGN_OUT"
+        msg_bytes = msg.encode()
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
+
         # Sending message to server
-        self.client_skt.send(msg.encode())
+        self.client_skt.send(cipher_msg)
         # Closing socket
         self.client_skt.close()
 
@@ -185,8 +198,10 @@ class TermailClient:
     def list_users(self):
         # Preparing command
         msg = "LIST_USERS"
+        msg_bytes = msg.encode()
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
-        self.client_skt.send(msg.encode())
+        self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())
@@ -194,8 +209,10 @@ class TermailClient:
     def send_msg(self, to_name, subject, msg):
         # Preparing command
         msg = "SEND_MSG "+to_name+" "+subject+" "+msg
+        msg_bytes = msg.encode()
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
-        self.client_skt.send(msg.encode())
+        self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())
@@ -203,8 +220,10 @@ class TermailClient:
     def list_messages(self):
         # Preparing command
         msg = "LIST_MSGS"
+        msg_bytes = msg.encode()
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
-        self.client_skt.send(msg.encode())
+        self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())
@@ -212,8 +231,10 @@ class TermailClient:
     def read_msg(self, msg_id):
         # Preparing command
         msg = "READ_MSG "+msg_id
+        msg_bytes = msg.encode()
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
-        self.client_skt.send(msg.encode())
+        self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
         print(server_answer.decode())

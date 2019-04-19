@@ -104,8 +104,6 @@ class User:
 
     def get_msg(self, msg_id):
         for msg in self.__messages:
-            ######################################################
-            print(str(msg.get_id()) + " : "+ msg.get_msg() +"\n")
             if msg.get_id() == int(msg_id):
                 m = "From: "+msg.get_from()+"\n"
                 m += "To: "+msg.get_to()+"\n"
@@ -233,7 +231,6 @@ class TermailServer:
             f.close()
         else:
             print(msg)
-
 
 
     def accept_connection(self):
