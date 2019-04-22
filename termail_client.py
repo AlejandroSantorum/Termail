@@ -6,12 +6,14 @@ import os
 from Crypto.PublicKey import RSA
 
 ##############################################
+### USEFUL FILES AND FOLDERS
 RESOURCES_FOLDER = "clients_resources/"
 RSA_KEYS_FOLDER = "clients_keys/"
 SERVER_RSA_PUBL_KEY_FILE = "server_RSA_publ_key.pem"
 PRIV_RSA_KEY_FILE = "priv_RSA_key.pem"
 PUBL_RSA_KEY_FILE = "publ_RSA_key.pem"
 ##############################################
+### USEFUL MACROS
 ERROR = -1
 SUCCESS = 0
 REGISTER = 1
@@ -85,6 +87,30 @@ class TermailClient:
         self.K = pow(self.B, self.a, self.p)
         self.strK = str(self.K).encode()
 
+    def _get_server_public_key(self):
+        # Asking for server public key to send user data safely
+        msg = "SERVER_PUBLIC_KEY"
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        server_answer = self.client_skt.recv(self.recv_size)
+        self.server_publ_key = server_answer.decode()
+        self.server_publ_key_file = RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE
+        f = open(self.server_publ_key_file, "wb")
+        f.write(server_answer)
+        f.close()
+
+    def _recv_decrypt_verify(self, caller_func):
+        # Waiting for response
+        server_answer = self.client_skt.recv(self.recv_size)
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at "+caller_func+": "+str(err)
+            print(msg)
+            return ERROR
+        return decrypted_answer.decode()
+
 
     def register(self):
         name = input("Introduce nickname to be registered: ")
@@ -97,17 +123,8 @@ class TermailClient:
 
         # Opening socket and connecting Termail server
         self._open_socket()
-
-        # Asking for server public key to send user data safely
-        msg = "SERVER_PUBLIC_KEY"
-        # Sending message to server
-        self.client_skt.send(msg.encode())
-        server_answer = self.client_skt.recv(self.recv_size)
-        self.server_publ_key = server_answer.decode()
-        self.server_publ_key_file = RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE
-        f = open(self.server_publ_key_file, "wb")
-        f.write(server_answer)
-        f.close()
+        # Getting server RSA public key to send data sefely
+        self._get_server_public_key()
 
         # Generating user RSA keys
         try:
@@ -135,16 +152,10 @@ class TermailClient:
         cipher_msg = encrypt_command(msg, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
         self.client_skt.send(cipher_msg)
-        # Waiting for response
-        server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
-        try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
-        except Exception as err:
-            msg = "Invalid signature at registration: "+str(err)
-            print(msg)
+        # Receiving encrypted data
+        answer = self._recv_decrypt_verify("registration")
+        if answer == ERROR:
             return ERROR
-        answer = decrypted_answer.decode()
         print(answer)
         answer_aux = answer.split()
         if answer_aux[0] == "Unable":
@@ -161,17 +172,8 @@ class TermailClient:
 
         # Negotiating DH's session key with Termail server
         self._diffie_hellman_handshake()
-
-        # Asking for server public key to send user data safely
-        msg = "SERVER_PUBLIC_KEY"
-        # Sending message to server
-        self.client_skt.send(msg.encode())
-        server_answer = self.client_skt.recv(self.recv_size)
-        self.server_publ_key = server_answer.decode()
-        self.server_publ_key_file = RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE
-        f = open(self.server_publ_key_file, "wb")
-        f.write(server_answer)
-        f.close()
+        # Getting server RSA public key to send data sefely
+        self._get_server_public_key()
 
         # Storing RSA keys files
         privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
@@ -185,16 +187,10 @@ class TermailClient:
         cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), privKF)
         # Sending message to server
         self.client_skt.send(cipher_msg)
-        # Waiting for response
-        server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
-        try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
-        except Exception as err:
-            msg = "Invalid signature at registration: "+str(err)
-            print(msg)
+        # Receiving encrypted data
+        answer = self._recv_decrypt_verify("logging in")
+        if answer == ERROR:
             return ERROR
-        answer = decrypted_answer.decode()
         print(answer)
         answer_aux = answer.split()
         if answer_aux[0] == "Unable":
@@ -235,16 +231,8 @@ class TermailClient:
         cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
         self.client_skt.send(cipher_msg)
-        # Waiting for response
-        server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
-        try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
-        except Exception as err:
-            msg = "Invalid signature at registration: "+str(err)
-            print(msg)
-            return ERROR
-        answer = decrypted_answer.decode()
+        # Receiving encrypted data
+        answer = self._recv_decrypt_verify("listing users")
         print(answer)
 
 
@@ -255,16 +243,8 @@ class TermailClient:
         cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
         self.client_skt.send(cipher_msg)
-        # Waiting for response
-        server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
-        try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
-        except Exception as err:
-            msg = "Invalid signature at registration: "+str(err)
-            print(msg)
-            return ERROR
-        answer = decrypted_answer.decode()
+        # Receiving encrypted data
+        answer = self._recv_decrypt_verify("sending message")
         print(answer)
 
 
@@ -275,16 +255,8 @@ class TermailClient:
         cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
         self.client_skt.send(cipher_msg)
-        # Waiting for response
-        server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
-        try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
-        except Exception as err:
-            msg = "Invalid signature at registration: "+str(err)
-            print(msg)
-            return ERROR
-        answer = decrypted_answer.decode()
+        # Receiving encrypted data
+        answer = self._recv_decrypt_verify("listing messages")
         print(answer)
 
 
@@ -295,16 +267,8 @@ class TermailClient:
         cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
         # Sending message to server
         self.client_skt.send(cipher_msg)
-        # Waiting for response
-        server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
-        try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
-        except Exception as err:
-            msg = "Invalid signature at registration: "+str(err)
-            print(msg)
-            return ERROR
-        answer = decrypted_answer.decode()
+        # Receiving encrypted data
+        answer = self._recv_decrypt_verify("reading message")
         print(answer)
 
 
