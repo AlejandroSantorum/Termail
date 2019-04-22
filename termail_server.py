@@ -1,3 +1,12 @@
+################################################################################
+#   Authors:                                                                   #
+#       · Alejandro Santorum Varela - alejandro.santorum@estudiante.uam.es     #
+#                                     alejandro.santorum@gmail.com             #
+#   Date: Apr 14, 2019                                                         #
+#   File: termail_server.py                                                    #
+#   Project: Termail Messeger Service - project for Communication Networks II  #
+#   Version: 1.1                                                               #
+################################################################################
 from termail_util import *
 from crypto_util import *
 import socket as skt
@@ -27,6 +36,21 @@ A_IND = 3
 
 total_msgs = 0
 class Message:
+    '''
+    Message class
+    It mission is to store a message in a proper way
+
+    Attributes:
+        __from : username of sender
+        __to : username of receiver
+        __subject : subject of the message (just one word)
+        __msg : message sent
+        __id : id of the message. Each message has an unique id
+
+    Typical use:
+        msg = Message("Jack", "Peter", "Confirmation_of_Entry", "You have been awarded...")
+    '''
+
     def __init__(self, from_name, to_name, subject, msg):
         self.__from = from_name
         self.__to = to_name
@@ -53,6 +77,24 @@ class Message:
 
 
 class User:
+    '''
+    User class
+    It mission is to store a user in a proper way
+
+    Attributes:
+        __name : username
+        __password : user password
+        __rsa_publ_key_file : filename where user public key is stored
+        __g : generator of Diffie-Hellman's handshake
+        __p : prime of Diffie-Hellman's handshake
+        __A : g^a (mop p) Diffie-Hellman's handshake
+        __b : b generated to create K (Diffie-Hellan's symm key)
+        __messages : array of Messages sent to this user
+        __nmessages : number of stored messages
+
+    Typical use:
+        usr = User("Jack", "ndjkafjk", generator, prime, A, b)
+    '''
 
     def __init__(self, name, password, rsa_publ_key, g, p, A, b):
         self.__name = name
@@ -114,6 +156,24 @@ class User:
 
 
 class UserDatabase:
+    '''
+    UserDatabase class
+    It mission is to store a certain amount of users
+
+    Attributes:
+        __max_users : maximum number of registered users
+        __users : array of registered users
+        __nusers : number of registered users
+
+    Typical use:
+        db = UserDatabase(max_users=1000)
+        db.insert_user("Jack", "dnasjkfbas")
+        db.authenticate_user("Jack", "dnasjkfbas")
+        db.get_user_rsa_publ_key_file("Jack")
+        db.send_message("Jack", "Peter", "subject1", "This is a message")
+        db.read_msg("Peter", 0) # 0 := message id
+        db.delete_user("Jack", "dnasjkfbas")
+    '''
 
     def __init__(self, max_users=100):
         self.__max_users = max_users
@@ -178,6 +238,29 @@ class UserDatabase:
 
 
 class TermailServer:
+    '''
+    TermailServer class
+    Created the Termail Server to handle its functionality
+
+    Attributes:
+        server_ip : ip where the server is binded
+        server_port : port where the server is binded
+        listen_size : maximum number of clients waiting to connect
+        server_skt : server's socket
+        max_clients : maximum number of connections from clients
+        connected_users : counter of the connected users
+        total_users : total number of users that have been connected
+        recv_size : maximum number of bytes that can be received in a single connection
+        user_db : users' database
+        log_file : server log file to register activity
+        privKF : server RSA private key file
+        publKF : server RSA public key file
+        priv_key : server RSA private key
+        publ_key : server RSA public key
+
+    Typical use:
+        Shown at if __name__ == '__main__':
+    '''
 
     def __init__(self, server_ip, server_port, listen_size=20, max_clients=5,
                  recv_size=4096, log_file=None):

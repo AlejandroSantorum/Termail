@@ -1,3 +1,12 @@
+################################################################################
+#   Authors:                                                                   #
+#       · Alejandro Santorum Varela - alejandro.santorum@estudiante.uam.es     #
+#                                     alejandro.santorum@gmail.com             #
+#   Date: Apr 14, 2019                                                         #
+#   File: termail_client.py                                                    #
+#   Project: Termail Messeger Service - project for Communication Networks II  #
+#   Version: 1.1                                                               #
+################################################################################
 from termail_util import *
 from crypto_util import *
 import socket as skt
@@ -87,6 +96,7 @@ class TermailClient:
         self.K = pow(self.B, self.a, self.p)
         self.strK = str(self.K).encode()
 
+
     def _get_server_public_key(self):
         # Asking for server public key to send user data safely
         msg = "SERVER_PUBLIC_KEY"
@@ -98,6 +108,7 @@ class TermailClient:
         f = open(self.server_publ_key_file, "wb")
         f.write(server_answer)
         f.close()
+
 
     def _recv_decrypt_verify(self, caller_func):
         # Waiting for response
