@@ -47,6 +47,7 @@ class TermailClient:
         self.A = None
         self.B = None
         self.K = None
+        self.strK = None
 
 
     def login(self):
@@ -82,6 +83,7 @@ class TermailClient:
         B = self.client_skt.recv(self.recv_size)
         self.B = int(B.decode())
         self.K = pow(self.B, self.a, self.p)
+        self.strK = str(self.K).encode()
 
 
     def register(self):
@@ -102,7 +104,8 @@ class TermailClient:
         self.client_skt.send(msg.encode())
         server_answer = self.client_skt.recv(self.recv_size)
         self.server_publ_key = server_answer.decode()
-        f = open(RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE, "wb")
+        self.server_publ_key_file = RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE
+        f = open(self.server_publ_key_file, "wb")
         f.write(server_answer)
         f.close()
 
@@ -134,7 +137,14 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        answer = server_answer.decode()
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at registration: "+str(err)
+            print(msg)
+            return ERROR
+        answer = decrypted_answer.decode()
         print(answer)
         answer_aux = answer.split()
         if answer_aux[0] == "Unable":
@@ -152,6 +162,17 @@ class TermailClient:
         # Negotiating DH's session key with Termail server
         self._diffie_hellman_handshake()
 
+        # Asking for server public key to send user data safely
+        msg = "SERVER_PUBLIC_KEY"
+        # Sending message to server
+        self.client_skt.send(msg.encode())
+        server_answer = self.client_skt.recv(self.recv_size)
+        self.server_publ_key = server_answer.decode()
+        self.server_publ_key_file = RESOURCES_FOLDER+SERVER_RSA_PUBL_KEY_FILE
+        f = open(self.server_publ_key_file, "wb")
+        f.write(server_answer)
+        f.close()
+
         # Storing RSA keys files
         privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
         publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
@@ -166,7 +187,14 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        answer = server_answer.decode()
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at registration: "+str(err)
+            print(msg)
+            return ERROR
+        answer = decrypted_answer.decode()
         print(answer)
         answer_aux = answer.split()
         if answer_aux[0] == "Unable":
@@ -209,7 +237,16 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        print(server_answer.decode())
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at registration: "+str(err)
+            print(msg)
+            return ERROR
+        answer = decrypted_answer.decode()
+        print(answer)
+
 
     def send_msg(self, to_name, subject, msg):
         # Preparing command
@@ -220,7 +257,16 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        print(server_answer.decode())
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at registration: "+str(err)
+            print(msg)
+            return ERROR
+        answer = decrypted_answer.decode()
+        print(answer)
+
 
     def list_messages(self):
         # Preparing command
@@ -231,7 +277,16 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        print(server_answer.decode())
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at registration: "+str(err)
+            print(msg)
+            return ERROR
+        answer = decrypted_answer.decode()
+        print(answer)
+
 
     def read_msg(self, msg_id):
         # Preparing command
@@ -242,7 +297,15 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        print(server_answer.decode())
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        try:
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+        except Exception as err:
+            msg = "Invalid signature at registration: "+str(err)
+            print(msg)
+            return ERROR
+        answer = decrypted_answer.decode()
+        print(answer)
 
 
 

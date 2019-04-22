@@ -202,9 +202,9 @@ class TermailServer:
         # Server log file to register activity
         self.log_file = log_file
         # Server private and public RSA keys
-        privKF = RESOURCES_FOLDER+SERVER_KEYS_FOLDER+PRIV_KEY_FILE
-        publKF = RESOURCES_FOLDER+SERVER_KEYS_FOLDER+PUBL_KEY_FILE
-        self.priv_key, self.publ_key = generate_RSA_keys(privKF, publKF)
+        self.privKF = RESOURCES_FOLDER+SERVER_KEYS_FOLDER+PRIV_KEY_FILE
+        self.publKF = RESOURCES_FOLDER+SERVER_KEYS_FOLDER+PUBL_KEY_FILE
+        self.priv_key, self.publ_key = generate_RSA_keys(self.privKF, self.publKF)
 
 
 
@@ -340,12 +340,14 @@ class TermailServer:
                         self.register_user(args[USERNAME], args[PASSW], rsa_publ_key, generator, prime, A, b)
                     except Exception as err:
                         msg = "Unable to register: "+str(err)
-                        client_skt.send(msg.encode())
+                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                        client_skt.send(cipher_msg)
                         continue
                     msg = "Registration of user \'"+args[USERNAME]+"\' completed"
                     self.server_log_msg(msg)
                     logged_user = args[USERNAME]
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
                 # Sign in command
                 elif args[CMD] == 'SIGN_IN':
                     try:
@@ -354,12 +356,14 @@ class TermailServer:
                         self.sign_in_user(args[USERNAME], args[PASSW])
                     except Exception as err:
                         msg = "Unable to sign in: "+str(err)
-                        client_skt.send(msg.encode())
+                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                        client_skt.send(cipher_msg)
                         continue
                     msg = "Sign in as \'"+args[USERNAME]+"\' successfully"
                     logged_user = args[USERNAME]
                     self.server_log_msg("Client \'"+logged_user+"\' has just signed in")
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
                 # Sign out command
                 elif args[CMD] == 'SIGN_OUT':
                     self.server_log_msg("Client \'"+logged_user+"\' has just signed out")
@@ -370,24 +374,29 @@ class TermailServer:
                 # List users command
                 elif args[CMD] == 'LIST_USERS':
                     msg = self.list_users()
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
                 # Sending message
                 elif args[CMD] == 'SEND_MSG':
                     message = prepare_msg(args)
                     msg = self.send_msg(logged_user, args[USERNAME], args[SUBJECT], message)
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
                 # User asked for his received messages
                 elif args[CMD] == 'LIST_MSGS':
                     msg = self.list_messages(logged_user)
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
                 # User asked to read a message with a given ID
                 elif args[CMD] == 'READ_MSG':
                     msg = self.read_msg(logged_user, args[MSG_ID])
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
                 # Command does not match
                 else:
                     msg = "Command \'"+args[CMD]+"\' not supported"
-                    client_skt.send(msg.encode())
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    client_skt.send(cipher_msg)
             except skt.error as err:
                 self.server_log_msg("Socket error: "+str(err))
         client_skt.close()
