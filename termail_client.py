@@ -36,6 +36,32 @@ NBITS = 64
 ##############################################
 
 class TermailClient:
+    '''
+    TermailClient class
+    Created the Termail Client to handle its functionality
+
+    Attributes:
+        server_ip : ip where the server is binded
+        server_port : port where the server is binded
+        client_skt : server-client socket
+        recv_size : maximum number of bytes that can be received in a single connection
+        server_publ_key : server RSA public key
+        server_publ_key_file : server RSA public key file
+        priv_RSA_key : client's RSA private key
+        publ_RSA_key : client's RSA public key
+        priv_RSA_key_file : client's RSA private key file
+        publ_RSA_key_file : client's RSA public key file
+        p : prime for Diffie-Hellman's handshake
+        g : generator for Diffie-Hellman's handshake
+        a : user's number for Diffie-Hellman's handshake
+        A : g^a (mop p)
+        B : server's number for Diffie Hellman's handshake
+        K : Diffie-Hellman's symmetric key
+        strK : Dffie-Hellman's symm key converted to string
+
+    Typical use:
+        Shown at if __name__ == '__main__':
+    '''
 
     def __init__(self, server_ip, server_port, recv_size=4096):
         self.server_ip = server_ip
