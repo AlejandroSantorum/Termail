@@ -91,10 +91,12 @@ def digital_sign(message, sender_priv_key_file):
 #   - message: message to encrypt
 #   - digital_sign (optional): signature to be added at the beginning
 #       of the message
+#   - symm_key (optional): symmetric key to use. If it is not
+#       provided it will create a 32 byte random key
 # Output:
 #   - ciphered text (containing signature+message)
 #   - iv
-#   - symmetric key
+#   - used symmetric key
 # Description:
 #   It puts together the signature with the message, and then encrypts
 #   the text using AES 256 bits with IV of 16 bytes in CBC mode
@@ -214,6 +216,19 @@ def decrypt_AES256_CBC(cipher_msg, symm_key, sign_flag=0):
         raise ValueError("ERROR: Unable to decipher message using AES256 CBC mode")
 
 
+################################################################
+# verify_signature
+# Input:
+#   - message: signed message
+#   - digital_sign: sign of the provided message
+#   - sender_publ_key: RSA public key of the message's sender
+# Output:
+#   - True in case the signature is satisfied or it raises an
+#       Exception if it does not match
+# Description:
+#   It verifies if a digital sign of a message is truly correct,
+#   providing sender's RSA public key.
+################################################################
 def verify_signature(message, digital_sign, sender_publ_key):
     try:
         # Hash message
@@ -226,9 +241,30 @@ def verify_signature(message, digital_sign, sender_publ_key):
         #return False
 
 
+################################################################
+# _check_coprime
+# Input:
+#   - n: integer number
+#   - m: another integer number
+# Output:
+#   - True, if both numbers are coprimes. False otherwise
+# Description:
+#   It checks if the two provided numbers are coprimes
+################################################################
 def _check_coprime(n,m):
     return gcd(n,m)==1
 
+
+################################################################
+# get_element_in_Zp
+# Input:
+#   - prime: a prime number
+# Output:
+#   - a coprime number with 'prime' in range(2, prime)
+# Description:
+#   It returns a element in Zp, what means it returns a coprime
+#   number with the provided prime
+################################################################
 def get_element_in_Zp(prime):
     while 1:
         aux = randint(2,prime)
@@ -237,12 +273,28 @@ def get_element_in_Zp(prime):
     return -1
 
 
+################################################################
+# get_random_nbit_prime
+# Input:
+#   - n: integer number
+# Output:
+#   - prime number of n bits
+# Description:
+#   It returns a n-bit prime number
+################################################################
 def get_random_nbit_prime(n):
     return getPrime(n)
 
+
+################################################################
+# get_randint_range
+# Input:
+#   - a: integer number
+#   - b: integer number greater than a
+# Output:
+#   - a random integer between a and b (both included)
+# Description:
+#   It returns random integer number between a and b
+################################################################
 def get_randint_range(a,b):
     return randint(a,b)
-
-# Testing module
-if __name__ == "__main__":
-    print("Test not implemented here")
