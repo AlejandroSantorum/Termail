@@ -1,10 +1,29 @@
+################################################################################
+#   Authors:                                                                   #
+#       · Alejandro Santorum Varela - alejandro.santorum@estudiante.uam.es     #
+#                                     alejandro.santorum@gmail.com             #
+#   Date: Apr 14, 2019                                                         #
+#   File: termail_util.py                                                      #
+#   Project: Termail Messeger Service - project for Communication Networks II  #
+#   Version: 1.1                                                               #
+################################################################################
+
 # Hash SHA256
 from Crypto.Hash import SHA256
 from crypto_util import *
 # Public and private keys for RSA algorithm
 from Crypto.PublicKey import RSA
 
-# Auxiliary function to allow users send messages with spaces through terminal input
+
+################################################################
+# prepare_msg
+# Input:
+#   - array_str: array of strings
+# Output:
+#   - a string that represents a message
+# Description:
+#   It joins a given array of strings into a unique string
+################################################################
 def prepare_msg(array_str):
     msg = ""
     i = 3
@@ -17,6 +36,16 @@ def prepare_msg(array_str):
     return msg
 
 
+################################################################
+# prepare_msg
+# Input:
+#   - args: array of strings containing a RSA key
+#   - start_index: index where the RSA key begins
+# Output:
+#   - a string that represents a RSA key
+# Description:
+#   It joins the RSA key given the splitted command
+################################################################
 def parse_RSA_key(args, start_index):
     aux = ""
     i = start_index
@@ -37,6 +66,18 @@ def parse_RSA_key(args, start_index):
     return aux
 
 
+################################################################
+# encrypt_command
+# Input:
+#   - command: string that represents a command
+#   - K: Diffie-Hellman constant
+#   - server_priv_RSA_key_file (optional): file of the sender RSA key
+# Output:
+#   - init vector + ciphered command
+# Description:
+#   It encrypts a given command, signing it if a private RSA key file
+#   is provided. It raises an Exception on error case
+################################################################
 def encrypt_command(command, K, sender_priv_RSA_key_file=None):
     try:
         # Hashing the Diffie-Hellmans key to transform it into a 256b key
@@ -56,6 +97,20 @@ def encrypt_command(command, K, sender_priv_RSA_key_file=None):
         raise Exception("Encrypting ERROR: " + str(err))
 
 
+################################################################
+# dencrypt_command
+# Input:
+#   - command: string that represents a encrypted command
+#   - K: Diffie-Hellman constant
+#   - sign_flag (optional): flag that indicates if the message
+#       contains a digital sign concatenated on it
+# Output:
+#   - decrypted command, signature if sign_flag = 1 or
+#       just the decrypted command if sign_flag != 1
+# Description:
+#   It decrypts a given command. If sign_flag = 1, it also splits
+#   the command in decrypted real command + signature
+################################################################
 def decrypt_command(command, K, sign_flag=1):
     try:
         # Hashing the Diffie-Hellmans key to transform it into a 256b key
@@ -72,6 +127,18 @@ def decrypt_command(command, K, sign_flag=1):
         raise Exception("Decrypting ERROR: " + str(err))
 
 
+################################################################
+# verify_digital_sign
+# Input:
+#   - message: signed message
+#   - signature: sign of the provided message
+#   - sender_publ_RSA_key_file: RSA public key file of the message's sender
+# Output:
+#   - Just raises an Exception if the digital sign does not match
+# Description:
+#   It verifies if a digital sign of a message is truly correct,
+#   providing sender's RSA public key.
+################################################################
 def verify_digital_sign(message, signature, sender_publ_RSA_key_file):
     sender_publ_RSA_key = RSA.import_key(open(sender_publ_RSA_key_file).read())
     # Verifying signature
