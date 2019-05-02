@@ -87,6 +87,17 @@ class TermailClient:
         self.strK = None
 
 
+    ################################################################
+    # login
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - REGISTER, SIGN_IN or EXIT macros on success,
+    #       raises ValueError otherwise
+    # Description:
+    #   It asks the user what he/she wants to do: register, sign in
+    #   or exit the client, returning his/her choice
+    ################################################################
     def login(self):
         while 1:
             try:
@@ -103,6 +114,15 @@ class TermailClient:
                 print("Please, introduce a valid option")
 
 
+    ################################################################
+    # _open_socket (private)
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It opens a TCP socket at the initialized server IP + port
+    ################################################################
     def _open_socket(self):
         # Opening socket internet/TCP
         self.client_skt = skt.socket(skt.AF_INET, skt.SOCK_STREAM)
@@ -110,6 +130,17 @@ class TermailClient:
         self.client_skt.connect((self.server_ip, self.server_port))
 
 
+    ################################################################
+    # _diffie_hellman_handshake (private)
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It generates all the diffie-hellman constants: p, g, a, A
+    #   and sends to the server the needed information for the
+    #   handshake, waiting for its answer
+    ################################################################
     def _diffie_hellman_handshake(self):
         self.p = get_random_nbit_prime(NBITS)
         self.g = get_element_in_Zp(self.p)
@@ -123,6 +154,17 @@ class TermailClient:
         self.strK = str(self.K).encode()
 
 
+    ################################################################
+    # _get_server_public_key (private)
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It aks for the server's RSA public key with the command
+    #   SERVER_PUBLIC_KEY. After recieving its answer, the RSA
+    # public key is stored in a file
+    ################################################################
     def _get_server_public_key(self):
         # Asking for server public key to send user data safely
         msg = "SERVER_PUBLIC_KEY"
@@ -136,6 +178,18 @@ class TermailClient:
         f.close()
 
 
+    ################################################################
+    # _recv_decrypt_verify (private)
+    # Input:
+    #   - self: termail client instance
+    #   - caller_func: name of the function what called this one
+    # Output:
+    #   - decrypted command
+    # Description:
+    #   It recieves a server answer, decrypts it, verifies its
+    #   digital sign and returns the decrypted+verified answer
+    #   on success. It raises and exception+ERROR on error case
+    ################################################################
     def _recv_decrypt_verify(self, caller_func):
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
@@ -149,6 +203,17 @@ class TermailClient:
         return decrypted_answer.decode()
 
 
+    ################################################################
+    # register
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - SUCCESS if everything went ok, ERROR otherwise
+    # Description:
+    #   It asks the user for its nickname+password, generates his/her
+    #   RSA keys, operates Diffie-Hellman handshake with the Termail
+    #   server and signs up the user into the server
+    ################################################################
     def register(self):
         name = input("Introduce nickname to be registered: ")
         while 1:
@@ -201,6 +266,16 @@ class TermailClient:
             return SUCCESS
 
 
+    ################################################################
+    # sign_in
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - SUCCESS on success, ERROR otherwise
+    # Description:
+    #   It asks the user for its nickname+password, autheticating him/her
+    #   in the Termail server
+    ################################################################
     def sign_in(self):
         name = input("Introduce nickname: ")
         password = input("Introduce password: ")
@@ -239,6 +314,15 @@ class TermailClient:
             return SUCCESS
 
 
+    ################################################################
+    # print_help
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It prints on the terminal all the commands' inforamtion
+    ################################################################
     def print_help(self):
         print("Available commands:")
         print("· HELP\n\t-> shows all commands")
@@ -249,6 +333,15 @@ class TermailClient:
         print("· READ_MSG <Message ID>\n\t-> reads message with the given ID")
 
 
+    ################################################################
+    # sign_out
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It communicates Termail server we are closing the connection
+    ################################################################
     def sign_out(self):
         # Preparing command
         msg = "SIGN_OUT"
@@ -261,6 +354,16 @@ class TermailClient:
         self.client_skt.close()
 
 
+    ################################################################
+    # list_users
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It requests the Termail server the list of registered users
+    #   and prints it on the terminal
+    ################################################################
     def list_users(self):
         # Preparing command
         msg = "LIST_USERS"
@@ -273,6 +376,18 @@ class TermailClient:
         print(answer)
 
 
+    ################################################################
+    # send_msg
+    # Input:
+    #   - self: termail client instance
+    #   - to_name: string that represents an username
+    #   - subject: string (with no blankspaces) that represents a message subject
+    #   - msg: string that represents a message
+    # Output:
+    #   - None
+    # Description:
+    #   It sends a message to the user 'to_name', with the subject 'subject'
+    ################################################################
     def send_msg(self, to_name, subject, msg):
         # Preparing command
         msg = "SEND_MSG "+to_name+" "+subject+" "+msg
@@ -285,6 +400,17 @@ class TermailClient:
         print(answer)
 
 
+    ################################################################
+    # list_messages
+    # Input:
+    #   - self: termail client instance
+    # Output:
+    #   - None
+    # Description:
+    #   It requests the Termail server the list of the message to
+    #   the caller user, printing a brief summary of the terminal.
+    #   Later, an user can read a single message using its ID
+    ################################################################
     def list_messages(self):
         # Preparing command
         msg = "LIST_MSGS"
@@ -297,6 +423,17 @@ class TermailClient:
         print(answer)
 
 
+    ################################################################
+    # read_msg
+    # Input:
+    #   - self: termail client instance
+    #   - msg_id: integer that represents a message ID
+    # Output:
+    #   - None
+    # Description:
+    #   It requests the Termail server the information of the message
+    #   with ID='msg_id' and prints it on the terminal
+    ################################################################
     def read_msg(self, msg_id):
         # Preparing command
         msg = "READ_MSG "+msg_id
@@ -311,7 +448,9 @@ class TermailClient:
 
 
 if __name__ == "__main__":
+    # Local test
     server_ip = '127.0.0.1'
+    # Server port
     server_port = 5005
 
     termail = TermailClient(server_ip, server_port)
@@ -339,8 +478,6 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             print("Exiting Termail client")
             exit()
-        #except Exception as err:
-        #    print("An exception occurred: "+str(err))
 
     # Once registered or signed in, you can send several commands
     while 1:
@@ -348,6 +485,7 @@ if __name__ == "__main__":
             command = input("Introduce command: ")
             cmd_items = command.split()
             if len(cmd_items) == 0:
+                # User has introduced a blank command
                 print("Do not introduce blank commands")
                 continue
             elif cmd_items[0] == "HELP":
