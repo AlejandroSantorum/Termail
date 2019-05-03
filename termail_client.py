@@ -296,7 +296,11 @@ class TermailClient:
         # Preparing command
         msg = "SIGN_IN "+name+" "+password
         msg_bytes = msg.encode()
-        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), privKF)
+        try:
+            cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), privKF)
+        except Exception:
+            print("There is not any user with nickname \'"+name+"\' in the database. Try it again")
+            return ERROR
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
