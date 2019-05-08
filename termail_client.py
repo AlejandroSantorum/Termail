@@ -11,6 +11,7 @@ from termail_util import *
 from crypto_util import *
 import socket as skt
 import os
+import shutil
 import getpass as gp
 # Public and private keys for RSA algorithm
 from Crypto.PublicKey import RSA
@@ -231,16 +232,17 @@ class TermailClient:
 
         # Generating user RSA keys
         try:
-            privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
-            publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
-            path = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name
+            temp = "_temp/"
+            privKF_temp = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+temp+PRIV_RSA_KEY_FILE
+            publKF_temp = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+temp+PUBL_RSA_KEY_FILE
+            path_temp = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+temp
             try:
-                os.mkdir(path)
+                os.mkdir(path_temp)
             except OSError as err:
                 pass
-            self.priv_RSA_key, self.publ_RSA_key = generate_RSA_keys(privKF, publKF)
-            self.priv_RSA_key_file = privKF
-            self.publ_RSA_key_file = publKF
+            self.priv_RSA_key, self.publ_RSA_key = generate_RSA_keys(privKF_temp, publKF_temp)
+            self.priv_RSA_key_file = privKF_temp
+            self.publ_RSA_key_file = publKF_temp
         except ValueError as err:
             print("Unable to generate client RSA keys: "+str(err))
             return ERROR
@@ -257,6 +259,9 @@ class TermailClient:
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
         answer = self._recv_decrypt_verify("registration")
+        # Removing temporary keys folder
+        shutil.rmtree(path_temp, ignore_errors=True)
+        # Checking server answer
         if answer == ERROR:
             return ERROR
         print(answer)
@@ -264,6 +269,22 @@ class TermailClient:
         if answer_aux[0] == "Unable":
             return ERROR
         else:
+            # Creating real keys folder and files
+            privKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PRIV_RSA_KEY_FILE
+            publKF = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name+"/"+PUBL_RSA_KEY_FILE
+            path = RESOURCES_FOLDER+RSA_KEYS_FOLDER+name
+            self.priv_RSA_key_file = privKF
+            self.publ_RSA_key_file = publKF
+            try:
+                os.mkdir(path)
+            except OSError as err:
+                pass
+            privKF_f = open(privKF, "wb")
+            privKF_f.write(self.priv_RSA_key)
+            privKF_f.close()
+            publKF_f = open(publKF, "wb")
+            publKF_f.write(self.publ_RSA_key)
+            publKF_f.close()
             return SUCCESS
 
 
