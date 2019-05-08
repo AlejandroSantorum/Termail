@@ -33,6 +33,7 @@ MODULO = 1
 GENERATOR = 2
 A_IND = 3
 ##############################################
+USR_NOT_FOUND_DB_MSG = "User not found in the database"
 
 total_msgs = 0
 class Message:
@@ -208,7 +209,7 @@ class UserDatabase:
         for user in self.__users:
             if user.get_name() == username:
                 return user.get_rsa_publ_key_file()
-        return "User not found in the database"
+        return USR_NOT_FOUND_DB_MSG
 
     def get_list_users(self):
         msg = ""
@@ -227,13 +228,13 @@ class UserDatabase:
         for user in self.__users:
             if user.get_name() == username:
                 return user.get_list_msgs()
-        return "User not found in the database"
+        return USR_NOT_FOUND_DB_MSG
 
     def read_msg(self, username, msg_id):
         for user in self.__users:
             if user.get_name() == username:
                 return user.get_msg(msg_id)
-        return "User not found in the database"
+        return USR_NOT_FOUND_DB_MSG
 
 
 
@@ -433,8 +434,14 @@ class TermailServer:
                     client_skt.send(cipher_msg)
                 # Sign in command
                 elif args[CMD] == 'SIGN_IN':
+                    publKF = self.user_db.get_user_rsa_publ_key_file(args[USERNAME])
+                    if publKF == USR_NOT_FOUND_DB_MSG:
+                        msg = "Unable to sign in as \'"+args[USERNAME]+"\': "+USR_NOT_FOUND_DB_MSG
+                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                        client_skt.send(cipher_msg)
+                        continue
                     try:
-                        publKF = self.user_db.get_user_rsa_publ_key_file(args[USERNAME])
+
                         verify_digital_sign(decrypted_cmd, signature, publKF)
                         self.sign_in_user(args[USERNAME], args[PASSW])
                     except Exception as err:
@@ -499,7 +506,7 @@ if __name__ == "__main__":
     except Exception as err:
         termail.server_log_msg("INIT ERROR: "+str(err))
         exit()
-    termail.server_log_msg("Server is created and RSA keys have just been generated")
+    termail.server_log_msg("Server created and RSA keys have just been generated")
 
     termail.server_log_msg("Opening server sockets")
     try:

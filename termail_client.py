@@ -11,6 +11,7 @@ from termail_util import *
 from crypto_util import *
 import socket as skt
 import os
+import getpass as gp
 # Public and private keys for RSA algorithm
 from Crypto.PublicKey import RSA
 
@@ -186,7 +187,7 @@ class TermailClient:
     # Output:
     #   - decrypted command
     # Description:
-    #   It recieves a server answer, decrypts it, verifies its
+    #   It receives a server answer, decrypts it, verifies its
     #   digital sign and returns the decrypted+verified answer
     #   on success. It raises and exception+ERROR on error case
     ################################################################
@@ -217,8 +218,8 @@ class TermailClient:
     def register(self):
         name = input("Introduce nickname to be registered: ")
         while 1:
-            password = input("Introduce password: ")
-            password2 = input("Reintroduce password again: ")
+            password = gp.getpass("Introduce password: ")
+            password2 = gp.getpass("Reintroduce password again: ")
             if password == password2:
                 break
             print("Password does not match. Try again")
@@ -278,7 +279,7 @@ class TermailClient:
     ################################################################
     def sign_in(self):
         name = input("Introduce nickname: ")
-        password = input("Introduce password: ")
+        password = gp.getpass("Introduce password: ")
         # Opening socket and connecting Termail server
         self._open_socket()
 

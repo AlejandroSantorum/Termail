@@ -14,6 +14,35 @@ from crypto_util import *
 # Public and private keys for RSA algorithm
 from Crypto.PublicKey import RSA
 
+PRINT_FLAG = 0 # If this flag is enable, debugging messages will be printed
+
+################################################################
+# enable_print_flag
+# Input:
+#   - None
+# Output:
+#   - None
+# Description:
+#   It sets PRINT_FLAG to 1 (activating debug analysis)
+################################################################
+def enable_print_flag():
+    global PRINT_FLAG
+    PRINT_FLAG = 1
+
+################################################################
+# print_debug_msg
+# Input:
+#   - message: string to be printed
+# Output:
+#   - None
+# Description:
+#   It prints the given string on the terminal only if PRINT_FLAG
+#   is set
+################################################################
+def print_debug_msg(message):
+    if PRINT_FLAG:
+        print(message+"\n")
+
 
 ################################################################
 # prepare_msg
@@ -80,6 +109,7 @@ def parse_RSA_key(args, start_index):
 ################################################################
 def encrypt_command(command, K, sender_priv_RSA_key_file=None):
     try:
+        print_debug_msg(">>> Encrypting command: "+str(command))
         # Hashing the Diffie-Hellmans key to transform it into a 256b key
         symm_key_h = SHA256.new(K)
         symm_key = symm_key_h.digest()
@@ -113,15 +143,18 @@ def encrypt_command(command, K, sender_priv_RSA_key_file=None):
 ################################################################
 def decrypt_command(command, K, sign_flag=1):
     try:
+        print_debug_msg(">>> Decrypting command")
         # Hashing the Diffie-Hellmans key to transform it into a 256b key
         symm_key_h = SHA256.new(K)
         symm_key = symm_key_h.digest()
         if sign_flag == 1:
             # Decrypting message using AES256
             real_command, signature = decrypt_AES256_CBC(command, symm_key, sign_flag=1)
+            print_debug_msg(">>> Decrypted command: "+str(real_command))
             return real_command, signature
         else:
             real_command = decrypt_AES256_CBC(command, symm_key, sign_flag=0)
+            print_debug_msg(">>> Decrypted command: "+str(real_command))
             return real_command
     except Exception as err:
         raise Exception("Decrypting ERROR: " + str(err))
@@ -140,6 +173,7 @@ def decrypt_command(command, K, sign_flag=1):
 #   providing sender's RSA public key.
 ################################################################
 def verify_digital_sign(message, signature, sender_publ_RSA_key_file):
+    print_debug_msg(">>> Verifying message digital sign")
     sender_publ_RSA_key = RSA.import_key(open(sender_publ_RSA_key_file).read())
     # Verifying signature
     if verify_signature(message, signature, sender_publ_RSA_key) != True:
