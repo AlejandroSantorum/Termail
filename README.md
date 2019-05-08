@@ -6,6 +6,7 @@ Project that implements a mail service with the goal of understanding Diffie-Hel
 
 ## Execution
 The server script called **termail_server.py** is suppossed to be running in a concrete IP and port. Then any client script, **termail_client.py**, can connect to it and execute the following commands after registering/signing in the server:
+
 *HELP*: It shows all the possible commands
 
 *LIST_USERS*: It sends the Termail server a request to get the users' list and show it on screen.
