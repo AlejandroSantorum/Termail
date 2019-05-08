@@ -3,3 +3,4 @@ tests.py
 *.pem
 clients_resources
 server_resources
+*.DS_Store
