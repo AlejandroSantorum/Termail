@@ -86,6 +86,8 @@ class TermailClient:
         self.B = None
         self.K = None
         self.strK = None
+        # Opening socket and connecting Termail server
+        self._open_socket()
 
 
     ################################################################
@@ -224,8 +226,6 @@ class TermailClient:
                 break
             print("Password does not match. Try again")
 
-        # Opening socket and connecting Termail server
-        self._open_socket()
         # Getting server RSA public key to send data sefely
         self._get_server_public_key()
 
@@ -280,8 +280,6 @@ class TermailClient:
     def sign_in(self):
         name = input("Introduce nickname: ")
         password = gp.getpass("Introduce password: ")
-        # Opening socket and connecting Termail server
-        self._open_socket()
 
         # Negotiating DH's session key with Termail server
         self._diffie_hellman_handshake()
@@ -453,12 +451,24 @@ class TermailClient:
 
 
 if __name__ == "__main__":
-    # Local test
-    server_ip = '127.0.0.1'
-    # Server port
-    server_port = 5005
+    if len(sys.argv) == 3: #__name__ IP PORT
+        server_ip = sys.argv[1]
+        try:
+            server_port = int(sys.argv[2])
+        except ValueError:
+            print("ERROR: Please, introduce a valid integer port between 5000 and 65535")
+            exit()
+    else:
+        server_ip = '127.0.0.1'
+        server_port = 5005
 
-    termail = TermailClient(server_ip, server_port)
+    # Creating TermailClient
+    try:
+        termail = TermailClient(server_ip, server_port)
+    except Exception as err:
+        print("Unable to initialize Termail Client: ", err)
+        exit()
+
     # Start panel: register, sign in or exit
     while 1:
         mode = termail.login()

@@ -495,8 +495,17 @@ class TermailServer:
 
 
 if __name__ == "__main__":
-    server_ip = '127.0.0.1'
-    server_port = 5005
+    if len(sys.argv) == 3: #__name__ IP PORT
+        server_ip = sys.argv[1]
+        try:
+            server_port = int(sys.argv[2])
+        except ValueError:
+            print("ERROR: Please, introduce a valid integer port between 5000 and 65535")
+            exit()
+    else:
+        server_ip = '127.0.0.1'
+        server_port = 5005
+
     IP = 0
     PORT = 1
     SLEEP_TIME = 5
@@ -526,7 +535,7 @@ if __name__ == "__main__":
         try:
             client_skt, client_addr = termail.accept_connection()
             # client_addr[0] = client_ip , client_addr[1] = client_port
-            termail.server_log_msg("Establish connection from" + client_addr[IP] + ":" + str(client_addr[PORT]))
+            termail.server_log_msg("Establish connection from " + client_addr[IP] + ":" + str(client_addr[PORT]))
 
             client_handler = thr.Thread(
                 target = termail.client_handler,
