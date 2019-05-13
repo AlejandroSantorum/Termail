@@ -25,4 +25,9 @@ Then any client script, **termail_client.py** (possible to execute with the same
 
 **SIGN_OUT**: It closes the connection with the server and terminates the process.
 
+## Cleaning folders after execution
+Both the Termail server and the client create folders to store RSA encryption keys. Two scripts have been added to eliminate this information once we no longer need it: **server_clean.py** and **client_clean.py**.
+
+Feel free to use them but take into account that once you have removed them the server/client should not need any of them, they have just been deleted!
+
 
