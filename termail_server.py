@@ -246,6 +246,7 @@ class TermailServer:
     Attributes:
         server_ip : ip where the server is binded
         server_port : port where the server is binded
+        verbose : whether to print progress messages to stdout.
         listen_size : maximum number of clients waiting to connect
         server_skt : server's socket
         max_clients : maximum number of connections from clients
@@ -263,12 +264,14 @@ class TermailServer:
         Shown at if __name__ == '__main__':
     '''
 
-    def __init__(self, server_ip, server_port, listen_size=20, max_clients=5,
-                 recv_size=4096, log_file=None):
+    def __init__(self, server_ip, server_port, verbose, listen_size=20,
+                 max_clients=5, recv_size=4096, log_file=None):
         # Server ip
         self.server_ip = server_ip
         # Server port
         self.server_port = server_port
+        # Verbosity
+        self.verbose = verbose
         # Server listening size
         self.listen_size = listen_size
         # Server socket
@@ -381,7 +384,7 @@ class TermailServer:
                         client_skt.send(msg)
                         continue
                     elif args[CMD] == "SETUP_DH":
-                        # Dffie-Hellman handshake
+                        # Diffie-Hellman handshake
                         prime = int(args[MODULO])
                         generator = int(args[GENERATOR])
                         A = int(args[A_IND])
@@ -391,6 +394,15 @@ class TermailServer:
                         # Sending B (g^b) to client
                         client_skt.send(msg.encode())
                         K = pow(A, b, prime)
+                        # Verbosity
+                        if self.verbose:
+                            print(">>> Received prime (p): ", prime)
+                            print(">>> Received generator (g): ", generator)
+                            print(">>> Received A (g^a): ", A)
+                            print(">>> Calculated b (random int between 1 and p-1): ", b)
+                            print(">>> Calculated B (g^b): ", B)
+                            print(">>> K (shared key): ", K)
+                            print("")
                         continue
                     else:
                         msg = "Command \'"+args[CMD]+"\' not supported"
@@ -404,13 +416,13 @@ class TermailServer:
                     # Command for registration or sign in
                     # If it is REGISTER cmd, signature is not checked
                     # If it is SIGN_IN, signature is checked later
-                    decrypted_cmd, signature = decrypt_command(command_bytes, auxK)
+                    decrypted_cmd, signature = decrypt_command(command_bytes, auxK, verbose=self.verbose)
                 else:
                     # Rest of commands
-                    decrypted_cmd, signature = decrypt_command(command_bytes, auxK)
+                    decrypted_cmd, signature = decrypt_command(command_bytes, auxK, verbose=self.verbose)
                     publKF = self.user_db.get_user_rsa_publ_key_file(logged_user)
                     try:
-                        verify_digital_sign(decrypted_cmd, signature, publKF)
+                        verify_digital_sign(decrypted_cmd, signature, publKF, verbose=self.verbose)
                     except Exception as err:
                         msg = "Invalid signature: "+str(err)
                         client_skt.send(msg.encode())
@@ -424,35 +436,35 @@ class TermailServer:
                         self.register_user(args[USERNAME], args[PASSW], rsa_publ_key, generator, prime, A, b)
                     except Exception as err:
                         msg = "Unable to register: "+str(err)
-                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                         client_skt.send(cipher_msg)
                         continue
                     msg = "Registration of user \'"+args[USERNAME]+"\' completed"
                     self.server_log_msg(msg)
                     logged_user = args[USERNAME]
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
                 # Sign in command
                 elif args[CMD] == 'SIGN_IN':
                     publKF = self.user_db.get_user_rsa_publ_key_file(args[USERNAME])
                     if publKF == USR_NOT_FOUND_DB_MSG:
                         msg = "Unable to sign in as \'"+args[USERNAME]+"\': "+USR_NOT_FOUND_DB_MSG
-                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                         client_skt.send(cipher_msg)
                         continue
                     try:
 
-                        verify_digital_sign(decrypted_cmd, signature, publKF)
+                        verify_digital_sign(decrypted_cmd, signature, publKF, verbose=self.verbose)
                         self.sign_in_user(args[USERNAME], args[PASSW])
                     except Exception as err:
                         msg = "Unable to sign in: "+str(err)
-                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                        cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                         client_skt.send(cipher_msg)
                         continue
                     msg = "Sign in as \'"+args[USERNAME]+"\' successfully"
                     logged_user = args[USERNAME]
                     self.server_log_msg("Client \'"+logged_user+"\' has just signed in")
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
                 # Sign out command
                 elif args[CMD] == 'SIGN_OUT':
@@ -464,28 +476,28 @@ class TermailServer:
                 # List users command
                 elif args[CMD] == 'LIST_USERS':
                     msg = self.list_users()
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
                 # Sending message
                 elif args[CMD] == 'SEND_MSG':
                     message = prepare_msg(args)
                     msg = self.send_msg(logged_user, args[USERNAME], args[SUBJECT], message)
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
                 # User asked for his received messages
                 elif args[CMD] == 'LIST_MSGS':
                     msg = self.list_messages(logged_user)
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
                 # User asked to read a message with a given ID
                 elif args[CMD] == 'READ_MSG':
                     msg = self.read_msg(logged_user, args[MSG_ID])
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
                 # Command does not match
                 else:
                     msg = "Command \'"+args[CMD]+"\' not supported"
-                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF)
+                    cipher_msg = encrypt_command(msg.encode(), auxK, self.privKF, verbose=self.verbose)
                     client_skt.send(cipher_msg)
             except skt.error as err:
                 self.server_log_msg("Socket error: "+str(err))
@@ -495,23 +507,28 @@ class TermailServer:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3: #__name__ IP PORT
+    verbose = 0
+    server_ip = '127.0.0.1'
+    server_port = 5005
+
+    if len(sys.argv) == 2 and sys.argv[1] == "-v":
+        verbose = 1
+    elif len(sys.argv) >= 3: #__name__ IP PORT
         server_ip = sys.argv[1]
         try:
             server_port = int(sys.argv[2])
         except ValueError:
             print("ERROR: Please, introduce a valid integer port between 5000 and 65535")
             exit()
-    else:
-        server_ip = '127.0.0.1'
-        server_port = 5005
+        if len(sys.argv) == 4 and sys.argv[3] == "-v":
+            verbose = 1
 
     IP = 0
     PORT = 1
     SLEEP_TIME = 5
 
     try:
-        termail = TermailServer(server_ip, server_port)
+        termail = TermailServer(server_ip, server_port, verbose)
     except Exception as err:
         termail.server_log_msg("INIT ERROR: "+str(err))
         exit()

@@ -45,6 +45,7 @@ class TermailClient:
     Attributes:
         server_ip : ip where the server is binded
         server_port : port where the server is binded
+        verbose : whether to print progress messages to stdout.
         client_skt : server-client socket
         recv_size : maximum number of bytes that can be received in a single connection
         server_publ_key : server RSA public key
@@ -65,9 +66,10 @@ class TermailClient:
         Shown at if __name__ == '__main__':
     '''
 
-    def __init__(self, server_ip, server_port, recv_size=4096):
+    def __init__(self, server_ip, server_port, verbose, recv_size=4096):
         self.server_ip = server_ip
         self.server_port = server_port
+        self.verbose = verbose
         # Socket
         self.client_skt = -1
         # Maximum buffer size to get data from server
@@ -151,10 +153,21 @@ class TermailClient:
         self.a = get_randint_range(1, self.p-1)
         self.A = pow(self.g, self.a, self.p)
         msg = "SETUP_DH "+str(self.p)+" "+str(self.g)+" "+str(self.A)
+        # Sending command
         self.client_skt.send(msg.encode())
+        # Receiving answer
         B = self.client_skt.recv(self.recv_size)
         self.B = int(B.decode())
         self.K = pow(self.B, self.a, self.p)
+        # Verbosity
+        if self.verbose:
+            print(">>> Calculated prime (p): ", self.p)
+            print(">>> Calculated generator (g): ", self.g)
+            print(">>> Calculated a (random int between 1 and p-1): ", self.a)
+            print(">>> Calculated A (g^a): ", self.A)
+            print(">>> Received B (g^b): ", self.B)
+            print(">>> K (shared key): ", self.K)
+            print("")
         self.strK = str(self.K).encode()
 
 
@@ -197,9 +210,9 @@ class TermailClient:
     def _recv_decrypt_verify(self, caller_func):
         # Waiting for response
         server_answer = self.client_skt.recv(self.recv_size)
-        decrypted_answer, signature = decrypt_command(server_answer, self.strK)
+        decrypted_answer, signature = decrypt_command(server_answer, self.strK, verbose=self.verbose)
         try:
-            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file)
+            verify_digital_sign(decrypted_answer, signature, self.server_publ_key_file, verbose=self.verbose)
         except Exception as err:
             msg = "Invalid signature at "+caller_func+": "+str(err)
             print(msg)
@@ -254,7 +267,7 @@ class TermailClient:
         msg = msg.encode()
         msg += self.publ_RSA_key
         # Encrypting command (at registration signature wont be verified)
-        cipher_msg = encrypt_command(msg, str(self.K).encode(), self.priv_RSA_key_file)
+        cipher_msg = encrypt_command(msg, str(self.K).encode(), self.priv_RSA_key_file, verbose=self.verbose)
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
@@ -317,7 +330,7 @@ class TermailClient:
         msg = "SIGN_IN "+name+" "+password
         msg_bytes = msg.encode()
         try:
-            cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), privKF)
+            cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), privKF, verbose=self.verbose)
         except Exception:
             print("There is not any user with nickname \'"+name+"\' in the database. Try it again")
             return ERROR
@@ -370,7 +383,7 @@ class TermailClient:
         # Preparing command
         msg = "SIGN_OUT"
         msg_bytes = msg.encode()
-        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file, verbose=self.verbose)
 
         # Sending message to server
         self.client_skt.send(cipher_msg)
@@ -392,7 +405,7 @@ class TermailClient:
         # Preparing command
         msg = "LIST_USERS"
         msg_bytes = msg.encode()
-        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file, verbose=self.verbose)
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
@@ -416,7 +429,7 @@ class TermailClient:
         # Preparing command
         msg = "SEND_MSG "+to_name+" "+subject+" "+msg
         msg_bytes = msg.encode()
-        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file, verbose=self.verbose)
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
@@ -439,7 +452,7 @@ class TermailClient:
         # Preparing command
         msg = "LIST_MSGS"
         msg_bytes = msg.encode()
-        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file, verbose=self.verbose)
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
@@ -462,7 +475,7 @@ class TermailClient:
         # Preparing command
         msg = "READ_MSG "+msg_id
         msg_bytes = msg.encode()
-        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file)
+        cipher_msg = encrypt_command(msg_bytes, str(self.K).encode(), self.priv_RSA_key_file, verbose=self.verbose)
         # Sending message to server
         self.client_skt.send(cipher_msg)
         # Receiving encrypted data
@@ -472,20 +485,25 @@ class TermailClient:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3: #__name__ IP PORT
+    verbose = 0
+    server_ip = '127.0.0.1'
+    server_port = 5005
+
+    if len(sys.argv) == 2 and sys.argv[1] == "-v":
+        verbose = 1
+    elif len(sys.argv) >= 3: #__name__ IP PORT
         server_ip = sys.argv[1]
         try:
             server_port = int(sys.argv[2])
         except ValueError:
             print("ERROR: Please, introduce a valid integer port between 5000 and 65535")
             exit()
-    else:
-        server_ip = '127.0.0.1'
-        server_port = 5005
+        if len(sys.argv) == 4 and sys.argv[3] == "-v":
+            verbose = 1
 
     # Creating TermailClient
     try:
-        termail = TermailClient(server_ip, server_port)
+        termail = TermailClient(server_ip, server_port, verbose)
     except Exception as err:
         print("Unable to initialize Termail Client: ", err)
         exit()
