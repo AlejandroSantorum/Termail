@@ -42,5 +42,7 @@ def clean_RSA_keys():
 
 
 if __name__ == "__main__":
+    # Deleting clients keys
     clean_clients_keys()
+    # Deleting server RSA keys
     clean_RSA_keys()
