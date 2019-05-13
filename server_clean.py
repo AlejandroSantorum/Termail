@@ -23,6 +23,7 @@ def clean_clients_keys():
         file_path = os.path.join(client_key_folder, file)
         try:
             if os.path.isfile(file_path):
+                # Deleting all files in the given folder
                 os.unlink(file_path)
         except Exception as exc:
             print("Unable to clean server clients keys: ", exc)
@@ -35,6 +36,7 @@ def clean_RSA_keys():
         file_path = os.path.join(RSA_key_folder, file)
         try:
             if os.path.isfile(file_path):
+                # Deleting all files in the given folder
                 os.unlink(file_path)
         except Exception as exc:
             print("Unable to clean server RSA keys: ", exc)
