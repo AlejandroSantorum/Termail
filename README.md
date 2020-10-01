@@ -2,7 +2,7 @@
 ## Communication Networks project for second semester, called Termail (terminal mail)
 
 ## Description
-Project that implements a mail service with the goal of understanding Diffie-Hellman key exchange protocol. It is written in Python and it can be run on any Unix system, with the only requirement of having *Pycryptodome* libray installed.
+Project that implements a mail service with the goal of understanding Diffie-Hellman key exchange protocol. It is written in Python and it can be run on any Unix system, with the only requirement of having *Pycryptodome* library installed.
 
 ## Execution
 The server script called **termail_server.py** is suppossed to be running in a concrete IP and port. If any IP and port are provided as input parameters (argv[1] and argv[2]), the server is going to be binded in *Loopback IP 127.0.0.1* and port *5005*. Additionally, there exists a optional input parameters, **-v**, that can be selected to activate verbosity and to monitor encryption algorithms. Execution examples:
